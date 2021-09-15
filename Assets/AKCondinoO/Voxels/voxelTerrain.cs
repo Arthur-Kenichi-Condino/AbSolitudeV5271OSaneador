@@ -9,8 +9,8 @@ namespace AKCondinoO.Voxels{internal class voxelTerrain:MonoBehaviour{
 [NonSerialized]internal const double IsoLevel=-50.0d;
 internal const int MaxcCoordx=6250;
 internal const int MaxcCoordy=6250;
-internal static Vector2Int instantiationDistance{get;}=new Vector2Int(4,4);
-internal static Vector2Int expropriationDistance{get;}=new Vector2Int(5,5);
+internal static Vector2Int instantiationDistance{get;}=new Vector2Int(5,5);
+internal static Vector2Int expropriationDistance{get;}=new Vector2Int(6,6);
 internal static Vector2Int vecPosTocCoord(Vector3 pos){
                                                 pos.x/=(float)Width;
                                                 pos.z/=(float)Depth;
@@ -43,19 +43,21 @@ internal static void ValidateCoordAxis(ref int axis,ref int coord,int axisLength
 }else if(coord>=axisLength){axis+=axisLength*Mathf.FloorToInt(Math.Abs(coord)/(float)axisLength);coord=(coord%axisLength);}
 }
 internal static readonly Dictionary<UNetPrefab,(Vector2Int cCoord,Vector2Int cCoord_Pre)?>bounds=new Dictionary<UNetPrefab,(Vector2Int,Vector2Int)?>();
-[SerializeField]internal voxelTerrainChunk prefab;internal static readonly Dictionary<int,voxelTerrainChunk>active=new Dictionary<int,voxelTerrainChunk>();internal static readonly LinkedList<voxelTerrainChunk>pool=new LinkedList<voxelTerrainChunk>();int poolSize=0;
+[SerializeField]internal voxelTerrainChunk prefab;internal static readonly Dictionary<int,voxelTerrainChunk>active=new Dictionary<int,voxelTerrainChunk>();internal static readonly List<voxelTerrainChunk>all=new List<voxelTerrainChunk>();internal static readonly LinkedList<voxelTerrainChunk>pool=new LinkedList<voxelTerrainChunk>();int poolSize=0;
 readonly marchingCubesMultithreaded[]marchingCubesThreads=new marchingCubesMultithreaded[Environment.ProcessorCount];
 void OnDisable(){
 marchingCubesMultithreaded.Stop=true;for(int i=0;i<marchingCubesThreads.Length;++i){marchingCubesThreads[i].Wait();}
+foreach(var cnk in all){cnk.Dispose();}
 }
 void OnEnable(){
+foreach(var cnk in all){cnk.Prepare();}
 marchingCubesMultithreaded.Stop=false;for(int i=0;i<marchingCubesThreads.Length;++i){marchingCubesThreads[i]=new marchingCubesMultithreaded();}
 }
 void Update(){
 if(NetworkManager.Singleton.IsServer){
 int requiredPoolSize=NetworkManager.Singleton.GetComponent<UNetTransport>().MaxConnections*(expropriationDistance.x*2+1)*(expropriationDistance.y*2+1);
 for(int i=poolSize;i<requiredPoolSize;poolSize=++i){
-voxelTerrainChunk cnk=Instantiate(prefab);cnk.expropriated=pool.AddLast(cnk);cnk.network.Spawn();
+voxelTerrainChunk cnk;all.Add(cnk=Instantiate(prefab));cnk.expropriated=pool.AddLast(cnk);cnk.network.Spawn();
 }
 foreach(var movement in bounds){if(movement.Value==null)continue;var moved=movement.Value;Vector2Int pCoord_Pre=moved.Value.cCoord_Pre;Vector2Int pCoord=moved.Value.cCoord;
 for(Vector2Int eCoord=new Vector2Int(),cCoord1=new Vector2Int();eCoord.y<=expropriationDistance.y;eCoord.y++){for(cCoord1.y=-eCoord.y+pCoord_Pre.y;cCoord1.y<=eCoord.y+pCoord_Pre.y;cCoord1.y+=eCoord.y*2){
