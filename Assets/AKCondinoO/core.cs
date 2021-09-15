@@ -25,7 +25,7 @@ internal abstract class backgroundObject{
 internal readonly AutoResetEvent foregroundData=new AutoResetEvent(false);internal readonly ManualResetEvent backgroundData=new ManualResetEvent(true);
 }
 #if UNITY_EDITOR
-public static void DrawBounds(Bounds b,Color color,float duration=0){//[https://gist.github.com/unitycoder/58f4b5d80f423d29e35c814a9556f9d9]
+internal static void DrawBounds(Bounds b,Color color,float duration=0){//[https://gist.github.com/unitycoder/58f4b5d80f423d29e35c814a9556f9d9]
 var p1=new Vector3(b.min.x,b.min.y,b.min.z);// bottom
 var p2=new Vector3(b.max.x,b.min.y,b.min.z);
 var p3=new Vector3(b.max.x,b.min.y,b.max.z);
