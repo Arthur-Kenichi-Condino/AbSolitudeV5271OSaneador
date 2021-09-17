@@ -1,3 +1,6 @@
+using LibNoise;
+using LibNoise.Generator;
+using LibNoise.Operator;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -50,6 +53,8 @@ marchingCubesMultithreaded.Stop=true;for(int i=0;i<marchingCubesThreads.Length;+
 foreach(var cnk in all){cnk.Dispose();}
 }
 void OnEnable(){
+biome.Seed=0;
+atlasHelper.GetAtlasData(prefab.GetComponent<MeshRenderer>().sharedMaterial);
 foreach(var cnk in all){cnk.Prepare();}
 marchingCubesMultithreaded.Stop=false;for(int i=0;i<marchingCubesThreads.Length;++i){marchingCubesThreads[i]=new marchingCubesMultithreaded();}
 }
@@ -93,6 +98,68 @@ _skip:{}
 if(iCoord.x==0){break;}}}
 if(iCoord.y==0){break;}}}
 }
+}
+}
+internal static readonly baseBiome biome=new baseBiome();
+internal class baseBiome{
+int seed_v;internal int Seed{get{return seed_v;}
+set{seed_v=value;Debug.Log("seed set: "+seed_v);
+random[0]=new System.Random(seed_v);
+random[1]=new System.Random(random[0].Next());
+SetModules();
+}
+}
+protected readonly System.Random[]random=new System.Random[2];
+protected virtual int rndIdx{get{return 1;}}
+protected virtual int hgtIdx{get{return 5;}}//  Base Height Result Module
+protected readonly List<ModuleBase>modules=new List<ModuleBase>();
+protected virtual void SetModules(){
+modules.Add(new Const( 0));
+modules.Add(new Const( 1));
+modules.Add(new Const(-1));
+modules.Add(new Const(.5));
+modules.Add(new Const(128));
+ModuleBase module1=new Const(5);
+// 2
+ModuleBase module2a=new RidgedMultifractal(frequency:Mathf.Pow(2,-8),lacunarity:2.0,octaves:6,seed:random[rndIdx].Next(),quality:QualityMode.Low);
+ModuleBase module2b=new Turbulence(input:module2a); 
+((Turbulence)module2b).Seed=random[rndIdx].Next();
+((Turbulence)module2b).Frequency=Mathf.Pow(2,-2);
+((Turbulence)module2b).Power=1;
+ModuleBase module2c=new ScaleBias(scale:1.0,bias:30.0,input:module2b);  
+// 3
+ModuleBase module3a=new Billow(frequency:Mathf.Pow(2,-7)*1.6,lacunarity:2.0,persistence:0.5,octaves:8,seed:random[rndIdx].Next(),quality:QualityMode.Low);
+ModuleBase module3b=new Turbulence(input:module3a);
+((Turbulence)module3b).Seed=random[rndIdx].Next();
+((Turbulence)module3b).Frequency=Mathf.Pow(2,-2);  
+((Turbulence)module3b).Power=1.8;
+ModuleBase module3c=new ScaleBias(scale:1.0,bias:31.0,input:module3b);
+// 4
+ModuleBase module4a=new Perlin(frequency:Mathf.Pow(2,-6),lacunarity:2.0,persistence:0.5,octaves:6,seed:random[rndIdx].Next(),quality:QualityMode.Low);
+ModuleBase module4b=new Select(inputA:module2c,inputB:module3c,controller:module4a);
+((Select)module4b).SetBounds(min:-.2,max:.2);
+((Select)module4b).FallOff=.25;
+ModuleBase module4c=new Multiply(lhs:module4b,rhs:module1);
+modules.Add(module4c);
+}
+}
+internal static class atlasHelper{
+internal static Material material{get;private set;}
+internal static void GetAtlasData(Material material){atlasHelper.material=material;
+float u,v;var texture=material.GetTexture("_MainTex");var w=texture.width;var h=texture.height;var tilesResolution=material.GetFloat("_TilesResolution"); 
+var tileWidth=(w/tilesResolution);
+var tileHeight=(h/tilesResolution);
+u=(tileWidth/w);//  X
+v=(tileHeight/h);//  Y
+uv[(int)materialId.Bedrock]=new Vector2(0*u,0*v);
+}
+internal static readonly Vector2[]uv=new Vector2[Enum.GetNames(typeof(materialId)).Length];
+internal enum materialId:ushort{
+Air=0,//  Default value
+Bedrock=1,//  Indestrutível
+Dirt=2,
+Rock=3,
+Sand=4,
 }
 }
 }}
