@@ -7,7 +7,9 @@ using System.Linq;
 using Unity.Netcode;
 using Unity.Netcode.Transports.UNET;
 using UnityEngine;
+using static AKCondinoO.Voxels.voxelTerrain.atlasHelper;
 using static AKCondinoO.Voxels.voxelTerrainChunk;
+using static AKCondinoO.Voxels.voxelTerrainChunk.marchingCubesMultithreaded;
 namespace AKCondinoO.Voxels{internal class voxelTerrain:MonoBehaviour{
 [NonSerialized]internal const double IsoLevel=-50.0d;
 internal const int MaxcCoordx=6250;
@@ -112,6 +114,7 @@ SetModules();
 protected readonly System.Random[]random=new System.Random[2];
 protected virtual int rndIdx{get{return 1;}}
 protected virtual int hgtIdx{get{return 5;}}//  Base Height Result Module
+readonly protected Select[]selectors=new Select[1];
 protected readonly List<ModuleBase>modules=new List<ModuleBase>();
 protected virtual void SetModules(){
 modules.Add(new Const( 0));
@@ -141,17 +144,52 @@ ModuleBase module4b=new Select(inputA:module2c,inputB:module3c,controller:module
 ((Select)module4b).FallOff=.25;
 ModuleBase module4c=new Multiply(lhs:module4b,rhs:module1);
 modules.Add(module4c);
+selectors[0]=(Select)module4b;
 }
+internal virtual int CacheCount{get{return 1;}}
+protected Vector3 deround{get;}=new Vector3(.5f,.5f,.5f);
+internal void Setvxl(Vector3Int noiseInputRounded,double[][][]nCache,materialId[][][]mCache,int oftIdx,int noiseIndex,ref voxel vxl){if(nCache!=null&&nCache[0][oftIdx]==null)nCache[0][oftIdx]=new double[FlattenOffset];if(mCache!=null&&mCache[0][oftIdx]==null)mCache[0][oftIdx]=new materialId[FlattenOffset];
+             Vector3 noiseInput=noiseInputRounded+deround;
+double noiseValue=(nCache!=null&&nCache[0][oftIdx][noiseIndex]!=0)?nCache[0][oftIdx][noiseIndex]:(nCache!=null?(nCache[0][oftIdx][noiseIndex]=Get()):Get());double Get(){return modules[hgtIdx].GetValue(noiseInput.z,noiseInput.x,0);}
+if(noiseInput.y<=noiseValue){
+double d;vxl=new voxel(d=density(100,noiseInput,noiseValue),Vector3.zero,material(d,noiseInput,mCache,oftIdx,noiseIndex));return;
+}
+vxl=voxel.Air;}
+protected virtual double density(double density,Vector3 noiseInput,double noiseValue,float smoothing=3f){double value=density;
+double delta=(noiseValue-noiseInput.y);//  noiseInput.y sempre será menor ou igual a noiseValue
+if(delta<=smoothing){
+double smoothingValue=(smoothing-delta)/smoothing;
+value*=1d-smoothingValue;
+if(value<0)
+   value=0;
+else if(value>100)
+        value=100;
+}
+return value;}
+protected virtual int ground(Vector3 noiseInput){
+double min=selectors[0].Minimum;
+double max=selectors[0].Maximum;
+double fallOff=selectors[0].FallOff*.5;
+var selectValue=selectors[0].Controller.GetValue(noiseInput.z,noiseInput.x,0);
+if(selectValue<=min-fallOff||selectValue>=max+fallOff){
+return 1;
+}else{
+return 0;
+}
+}
+readonly protected materialId[]materialIdPicking=new materialId[2]{
+materialId.Rock,
+materialId.Dirt,
+};
+protected virtual materialId material(double density,Vector3 noiseInput,materialId[][][]mCache,int oftIdx,int noiseIndex){if(-density>=IsoLevel){return materialId.Air;}materialId m;
+if(mCache!=null&&mCache[0][oftIdx][noiseIndex]!=0){return mCache[0][oftIdx][noiseIndex];}
+m=materialIdPicking[ground(noiseInput)];
+return mCache!=null?mCache[0][oftIdx][noiseIndex]=m:m;}
 }
 internal static class atlasHelper{
 internal static Material material{get;private set;}
 internal static void GetAtlasData(Material material){atlasHelper.material=material;
-float u,v;var texture=material.GetTexture("_MainTex");var w=texture.width;var h=texture.height;var tilesResolution=material.GetFloat("_TilesResolution"); 
-var tileWidth=(w/tilesResolution);
-var tileHeight=(h/tilesResolution);
-u=(tileWidth/w);//  X
-v=(tileHeight/h);//  Y
-uv[(int)materialId.Bedrock]=new Vector2(0*u,0*v);
+uv[(int)materialId.Rock]=new Vector2(0,0);
 }
 internal static readonly Vector2[]uv=new Vector2[Enum.GetNames(typeof(materialId)).Length];
 internal enum materialId:ushort{

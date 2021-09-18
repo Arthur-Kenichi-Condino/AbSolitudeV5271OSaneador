@@ -130,6 +130,10 @@ new Vector3(-.5f, .5f, .5f),
 });
 internal marchingCubesMultithreaded(){
 for(int i=0;i<neighbors.Length;++i){neighbors[i]=new Dictionary<int,voxel>();}
+for(int i=0;i<biome.CacheCount;++i){
+nCache[i]=new     double[9][];
+mCache[i]=new materialId[9][];
+}
 for(int i=0;i<voxelsBuffer1[2].Length;++i){voxelsBuffer1[2][i]=new voxel[4];if(i<voxelsBuffer1[1].Length){voxelsBuffer1[1][i]=new voxel[4];}}
 for(int i=0;i<verticesBuffer[2].Length;++i){verticesBuffer[2][i]=new Vector3[4];if(i<verticesBuffer[1].Length){verticesBuffer[1][i]=new Vector3[4];}}
 }
@@ -145,9 +149,14 @@ protected override void Release(){
 }
 protected override void Cleanup(){
 Array.Clear(voxels,0,voxels.Length);for(int i=0;i<neighbors.Length;++i){neighbors[i].Clear();}
+for(int i=0;i<biome.CacheCount;++i){
+for(int j=0;j<nCache[i].Length;++j){if(nCache[i][j]!=null)Array.Clear(nCache[i][j],0,nCache[i][j].Length);}
+for(int j=0;j<mCache[i].Length;++j){if(mCache[i][j]!=null)Array.Clear(mCache[i][j],0,mCache[i][j].Length);}
+}
 for(int i=0;i<voxelsBuffer1[0].Length;++i){Array.Clear(voxelsBuffer1[0][i],0,voxelsBuffer1[0][i].Length);}
 for(int i=0;i<voxelsBuffer1[1].Length;++i){Array.Clear(voxelsBuffer1[1][i],0,voxelsBuffer1[1][i].Length);}
 for(int i=0;i<voxelsBuffer1[2].Length;++i){Array.Clear(voxelsBuffer1[2][i],0,voxelsBuffer1[2][i].Length);}
+for(int i=0;i<voxelsBuffer2.Length;++i){if(voxelsBuffer2[i]!=null)Array.Clear(voxelsBuffer2[i],0,voxelsBuffer2[i].Length);}
 for(int i=0;i<verticesBuffer[0].Length;++i){Array.Clear(verticesBuffer[0][i],0,verticesBuffer[0][i].Length);}
 for(int i=0;i<verticesBuffer[1].Length;++i){Array.Clear(verticesBuffer[1][i],0,verticesBuffer[1][i].Length);}
 for(int i=0;i<verticesBuffer[2].Length;++i){Array.Clear(verticesBuffer[2][i],0,verticesBuffer[2][i].Length);}
@@ -161,7 +170,9 @@ internal double Density;internal Vector3 Normal;internal materialId Material;int
 internal static voxel Air    {get;}=new voxel(  0.0,Vector3.zero,materialId.Air    );
 internal static voxel Bedrock{get;}=new voxel(101.0,Vector3.zero,materialId.Bedrock);
 }
+readonly double[][][]nCache=new double[biome.CacheCount][][];readonly materialId[][][]mCache=new materialId[biome.CacheCount][][];
 readonly voxel[][][]voxelsBuffer1=new voxel[3][][]{new voxel[1][]{new voxel[4],},new voxel[Depth][],new voxel[FlattenOffset][],};
+  readonly voxel[][]voxelsBuffer2=new voxel[3][]{new voxel[1],new voxel[Depth],new voxel[FlattenOffset],};
 readonly voxel[]polygonCell=new voxel[8];readonly voxel[]tmpvxl=new voxel[6];
 readonly materialId[]materials=new materialId[12];
    readonly Vector3[] vertices=new Vector3[12];[NonSerialized]readonly Vector3[][][]verticesBuffer=new Vector3[3][][]{new Vector3[1][]{new Vector3[4],},new Vector3[Depth][],new Vector3[FlattenOffset][],};
@@ -207,9 +218,46 @@ if(vCoord2.x<0||vCoord2.x>=Width||
        int vxlIdx2=GetvxlIdx(vCoord2.x,vCoord2.y,vCoord2.z); 
 int oftIdx2=GetoftIdx(cCoord2-cCoord1);/*  já construído:  */if(oftIdx2==0&&voxels[vxlIdx2].IsCreated){polygonCell[corner]=voxels[vxlIdx2];}else if(oftIdx2>0&&neighbors[oftIdx2-1].ContainsKey(vxlIdx2)){polygonCell[corner]=neighbors[oftIdx2-1][vxlIdx2];}else{
 //  pegar valor do bioma:
-Vector3 noiseInput=vCoord2;noiseInput.x+=cnkRgn2.x;
-                           noiseInput.z+=cnkRgn2.y;
+Vector3Int noiseInput=vCoord2;noiseInput.x+=cnkRgn2.x;
+                              noiseInput.z+=cnkRgn2.y;
+biome.Setvxl(noiseInput,nCache,mCache,oftIdx2,vCoord2.z+vCoord2.x*Depth,ref polygonCell[corner]);
 }
+if(polygonCell[corner].Material!=materialId.Air&&polygonCell[corner].Normal==Vector3.zero){
+//  calcular normal:
+int tmpIdx=0;Vector3Int vCoord3=vCoord2;vCoord3.x++;                                                                                                                                                                SetpolygonCellNormalSettmpvxl();
+tmpIdx++;vCoord3=vCoord2;               vCoord3.x--;if(vCoord2.z>1&&vCoord2.x>1&&vCoord2.y>1&&voxelsBuffer2[1][vCoord2.z].IsCreated)                tmpvxl[tmpIdx]=voxelsBuffer2[1][vCoord2.z];                else SetpolygonCellNormalSettmpvxl();
+tmpIdx++;vCoord3=vCoord2;               vCoord3.y++;                                                                                                                                                                SetpolygonCellNormalSettmpvxl();
+tmpIdx++;vCoord3=vCoord2;               vCoord3.y--;if(vCoord2.z>1&&vCoord2.x>1&&vCoord2.y>1&&voxelsBuffer2[2][vCoord2.z+vCoord2.x*Depth].IsCreated)tmpvxl[tmpIdx]=voxelsBuffer2[2][vCoord2.z+vCoord2.x*Depth];else SetpolygonCellNormalSettmpvxl();
+tmpIdx++;vCoord3=vCoord2;               vCoord3.z++;                                                                                                                                                                SetpolygonCellNormalSettmpvxl();
+tmpIdx++;vCoord3=vCoord2;               vCoord3.z--;if(vCoord2.z>1&&vCoord2.x>1&&vCoord2.y>1&&voxelsBuffer2[0][0].IsCreated)                        tmpvxl[tmpIdx]=voxelsBuffer2[0][0];                        else SetpolygonCellNormalSettmpvxl();
+void SetpolygonCellNormalSettmpvxl(){
+if(vCoord3.y<=0){tmpvxl[tmpIdx]=voxel.Bedrock;}else if(vCoord3.y>=Height){tmpvxl[tmpIdx]=voxel.Air;}else{
+Vector2Int cnkRgn3=cnkRgn2;
+Vector2Int cCoord3=cCoord2;
+if(vCoord3.x<0||vCoord3.x>=Width||
+   vCoord3.z<0||vCoord3.z>=Depth){ValidateCoord(ref cnkRgn3,ref vCoord3);cCoord3=cnkRgnTocCoord(cnkRgn3);}
+       int vxlIdx3=GetvxlIdx(vCoord3.x,vCoord3.y,vCoord3.z);
+int oftIdx3=GetoftIdx(cCoord3-cCoord1);if(oftIdx3==0&&voxels[vxlIdx3].IsCreated){tmpvxl[tmpIdx]=voxels[vxlIdx3];}else if(oftIdx3>0&&neighbors[oftIdx3-1].ContainsKey(vxlIdx3)){tmpvxl[tmpIdx]=neighbors[oftIdx3-1][vxlIdx3];}else{
+Vector3Int noiseInput=vCoord3;noiseInput.x+=cnkRgn3.x;
+                              noiseInput.z+=cnkRgn3.y;
+biome.Setvxl(noiseInput,nCache,mCache,oftIdx3,vCoord3.z+vCoord3.x*Depth,ref tmpvxl[tmpIdx]);
+}
+if(oftIdx3==0){voxels[vxlIdx3]=tmpvxl[tmpIdx];}else if(oftIdx3>0){neighbors[oftIdx3-1][vxlIdx3]=tmpvxl[tmpIdx];}
+}
+}
+Vector3 polygonCellNormal=new Vector3{
+x=(float)(tmpvxl[1].Density-tmpvxl[0].Density),
+y=(float)(tmpvxl[3].Density-tmpvxl[2].Density),
+z=(float)(tmpvxl[5].Density-tmpvxl[4].Density)};
+polygonCell[corner].Normal=polygonCellNormal;
+if(polygonCell[corner].Normal!=Vector3.zero){
+polygonCell[corner].Normal.Normalize();
+}
+if(oftIdx2==0){voxels[vxlIdx2]=polygonCell[corner];}else if(oftIdx2>0){neighbors[oftIdx2-1][vxlIdx2]=polygonCell[corner];}//  :salvar valor construído
+}
+voxelsBuffer2[0][0]=polygonCell[corner];
+voxelsBuffer2[1][vCoord2.z]=polygonCell[corner];
+voxelsBuffer2[2][vCoord2.z+vCoord2.x*Depth]=polygonCell[corner];
 }
 }
 int edgeIndex;
