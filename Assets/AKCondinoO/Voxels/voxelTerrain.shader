@@ -1,5 +1,8 @@
 ﻿Shader"Voxels/voxelTerrain"{
 Properties{
+_MainTex("do not add texture",2D)="white"{}//  leave it here or Unity doesn't fill struct Input with correct values
+_columns("atlas columns",float)=2
+   _rows("atlas rows"   ,float)=2
 _scale("scale",float)=1 _sharpness("triplanar blend sharpness",float)=1
 _materials("materials",2DArray)="white"{}_bumps("material bumps",2DArray)="bump"{}_heights("material heights",2DArray)="white"{}_height("Height",Range(0,.125))=.05
 }
@@ -39,6 +42,7 @@ CGPROGRAM
 UNITY_INSTANCING_BUFFER_START(Props)
 //  Put more per-instance properties here
 UNITY_INSTANCING_BUFFER_END  (Props)
+float _columns;float _rows;
 float _scale;
 float _sharpness;
 float _height;
@@ -57,30 +61,64 @@ INTERNAL_DATA
 Input vert(inout appdata_full v){
  Input o;
 return o;}
-void surf(Input input,inout SurfaceOutputStandard o){
-half2 uv_x=input.worldPos.yz*_scale;
-half2 uv_y=input.worldPos.xz*_scale;
-half2 uv_z=input.worldPos.xy*_scale;
-half3 blendWeights=pow(abs(WorldNormalVector(input,o.Normal)),_sharpness);blendWeights=blendWeights/(blendWeights.x+blendWeights.y+blendWeights.z);
-fixed4 height_axis_x=input.color.r*UNITY_SAMPLE_TEX2DARRAY(_heights,float3(frac(uv_x),0));
-fixed4 height_axis_y=input.color.r*UNITY_SAMPLE_TEX2DARRAY(_heights,float3(frac(uv_y),0));
-fixed4 height_axis_z=input.color.r*UNITY_SAMPLE_TEX2DARRAY(_heights,float3(frac(uv_z),0));
+half2 uv_x;
+half2 uv_y;
+half2 uv_z;
+half3 blendWeights;
+struct sampledHeight{
+float2 texOffset;
+};
+sampledHeight sampleHeight(float strenght,float index,float3 viewDir){
+sampledHeight o;
+fixed4 height_axis_x=strenght*UNITY_SAMPLE_TEX2DARRAY(_heights,float3(frac(uv_x),index));
+fixed4 height_axis_y=strenght*UNITY_SAMPLE_TEX2DARRAY(_heights,float3(frac(uv_y),index));
+fixed4 height_axis_z=strenght*UNITY_SAMPLE_TEX2DARRAY(_heights,float3(frac(uv_z),index));
 fixed4 h=(height_axis_x)*blendWeights.x
 		+(height_axis_y)*blendWeights.y
 		+(height_axis_z)*blendWeights.z;
-float2 texOffset=ParallaxOffset(h.r,_height,input.viewDir);
-fixed4 tex_axis_x=input.color.r*UNITY_SAMPLE_TEX2DARRAY(_materials,float3(frac(uv_x)+texOffset,0));
-fixed4 tex_axis_y=input.color.r*UNITY_SAMPLE_TEX2DARRAY(_materials,float3(frac(uv_y)+texOffset,0));
-fixed4 tex_axis_z=input.color.r*UNITY_SAMPLE_TEX2DARRAY(_materials,float3(frac(uv_z)+texOffset,0));
-fixed4 bump_axis_x=input.color.r*UNITY_SAMPLE_TEX2DARRAY(_bumps,float3(frac(uv_x)+texOffset,0));
-fixed4 bump_axis_y=input.color.r*UNITY_SAMPLE_TEX2DARRAY(_bumps,float3(frac(uv_y)+texOffset,0));
-fixed4 bump_axis_z=input.color.r*UNITY_SAMPLE_TEX2DARRAY(_bumps,float3(frac(uv_z)+texOffset,0));
-fixed4 c=(tex_axis_x)*blendWeights.x
-		+(tex_axis_y)*blendWeights.y
-		+(tex_axis_z)*blendWeights.z;
-fixed4 b=(bump_axis_x)*blendWeights.x
-		+(bump_axis_y)*blendWeights.y
-		+(bump_axis_z)*blendWeights.z;
+o.texOffset=ParallaxOffset(h.r,_height,viewDir);
+return o;}
+struct sampledColorNBump{
+fixed4 tex_axis_x;
+fixed4 tex_axis_y;
+fixed4 tex_axis_z;
+fixed4 bump_axis_x;
+fixed4 bump_axis_y;
+fixed4 bump_axis_z;
+};
+sampledColorNBump sampleColorNBump(float2 texOffset,float strenght,float index){
+sampledColorNBump o;
+o.tex_axis_x=strenght*UNITY_SAMPLE_TEX2DARRAY(_materials,float3(frac(uv_x)+texOffset,index));
+o.tex_axis_y=strenght*UNITY_SAMPLE_TEX2DARRAY(_materials,float3(frac(uv_y)+texOffset,index));
+o.tex_axis_z=strenght*UNITY_SAMPLE_TEX2DARRAY(_materials,float3(frac(uv_z)+texOffset,index));
+o.bump_axis_x=strenght*UNITY_SAMPLE_TEX2DARRAY(_bumps,float3(frac(uv_x)+texOffset,index));
+o.bump_axis_y=strenght*UNITY_SAMPLE_TEX2DARRAY(_bumps,float3(frac(uv_y)+texOffset,index));
+o.bump_axis_z=strenght*UNITY_SAMPLE_TEX2DARRAY(_bumps,float3(frac(uv_z)+texOffset,index));
+return o;}
+void surf(Input input,inout SurfaceOutputStandard o){
+uv_x=input.worldPos.yz*_scale;
+uv_y=input.worldPos.xz*_scale;
+uv_z=input.worldPos.xy*_scale;
+blendWeights=pow(abs(WorldNormalVector(input,o.Normal)),_sharpness);blendWeights=blendWeights/(blendWeights.x+blendWeights.y+blendWeights.z);
+fixed4 c_x=fixed4(0,0,0,0);
+fixed4 c_y=fixed4(0,0,0,0);
+fixed4 c_z=fixed4(0,0,0,0);
+fixed4 b_x=fixed4(0,0,0,0);
+fixed4 b_y=fixed4(0,0,0,0);
+fixed4 b_z=fixed4(0,0,0,0);
+float index_r=input.uv_MainTex.x+_columns*input.uv_MainTex.y;sampledHeight height_r=sampleHeight(input.color.r,index_r,input.viewDir);sampledColorNBump colorNBump_r=sampleColorNBump(height_r.texOffset,input.color.r,index_r);
+c_x+=colorNBump_r.tex_axis_x;
+c_y+=colorNBump_r.tex_axis_y;
+c_z+=colorNBump_r.tex_axis_z;
+b_x+=colorNBump_r.bump_axis_x;
+b_y+=colorNBump_r.bump_axis_y;
+b_z+=colorNBump_r.bump_axis_z;
+fixed4 c=(c_x)*blendWeights.x
+		+(c_y)*blendWeights.y
+		+(c_z)*blendWeights.z;
+fixed4 b=(b_x)*blendWeights.x
+		+(b_y)*blendWeights.y
+		+(b_z)*blendWeights.z;
 o.Albedo=(c.rgb);o.Normal=UnpackNormal(b);
 float alpha=c.a;
 o.Alpha=(alpha);

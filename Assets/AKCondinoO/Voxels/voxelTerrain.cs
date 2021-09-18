@@ -189,6 +189,7 @@ return mCache!=null?mCache[0][oftIdx][noiseIndex]=m:m;}
 internal static class atlasHelper{
 internal static Material material{get;private set;}
 internal static void GetAtlasData(Material material){atlasHelper.material=material;
+uv[(int)materialId.Dirt]=new Vector2(1,0);
 uv[(int)materialId.Rock]=new Vector2(0,0);
 }
 internal static readonly Vector2[]uv=new Vector2[Enum.GetNames(typeof(materialId)).Length];
