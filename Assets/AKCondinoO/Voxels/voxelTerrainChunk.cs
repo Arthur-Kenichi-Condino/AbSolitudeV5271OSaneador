@@ -2,6 +2,7 @@ using paulbourke.MarchingCubes;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Linq;
 using Unity.Collections;
 using Unity.Jobs;
 using Unity.Netcode;
@@ -179,7 +180,7 @@ readonly materialId[]materials=new materialId[12];
    readonly Vector3[]  normals=new Vector3[12];
 readonly double[]density=new double[2];readonly Vector3[]vertex=new Vector3[2];readonly materialId[]material=new materialId[2];readonly float[]distance=new float[2];
 readonly int[]idx=new int[3];readonly Vector3[]verPos=new Vector3[3];
-readonly Dictionary<Vector3,List<Vector2>>vertexUV=new Dictionary<Vector3,List<Vector2>>();
+readonly Dictionary<Vector3,List<Vector2>>vertexUV=new Dictionary<Vector3,List<Vector2>>();readonly Dictionary<int,int>weights=new Dictionary<int,int>(4);
 protected override void Execute(){Debug.Log("Execute");
 TempVer.Clear();UInt32 vertexCount=0;
 TempTri.Clear();
@@ -348,6 +349,40 @@ verticesBuffer[2][vCoord1.z+vCoord1.x*Depth][2]=vertices[10]+Vector3.down;
 verticesBuffer[2][vCoord1.z+vCoord1.x*Depth][3]=vertices[11]+Vector3.down;
 }
 }}}
+for(int i=0;i<TempVer.Length/3;i++){idx[0]=i*3;idx[1]=i*3+1;idx[2]=i*3+2;for(int j=0;j<3;j++){
+var materialIdGroupingOrdered=vertexUV[verPos[j]=TempVer[idx[j]].pos].ToArray().Select(uv=>{return (materialId)Array.IndexOf(atlasHelper.uv,uv);}).GroupBy(value=>value).OrderByDescending(group=>group.Key).ThenByDescending(group=>group.Count());weights.Clear();int total=0;
+Vector2 uv0=TempVer[idx[j]].texCoord0;foreach(var materialIdGroup in materialIdGroupingOrdered){bool add;
+Vector2 uv=atlasHelper.uv[(int)materialIdGroup.First()];
+if(uv0==uv){
+total+=weights[0]=materialIdGroup.Count();
+}else if(((add=TempVer[idx[j]].texCoord1==emptyUV)&&TempVer[idx[j]].texCoord2!=uv&&TempVer[idx[j]].texCoord3!=uv)||TempVer[idx[j]].texCoord1==uv){
+if(add){var v1=TempVer[idx[0]];v1.texCoord1=uv;TempVer[idx[0]]=v1;
+            v1=TempVer[idx[1]];v1.texCoord1=uv;TempVer[idx[1]]=v1;
+            v1=TempVer[idx[2]];v1.texCoord1=uv;TempVer[idx[2]]=v1;
+}
+total+=weights[1]=materialIdGroup.Count();
+}else if(((add=TempVer[idx[j]].texCoord2==emptyUV)&&TempVer[idx[j]].texCoord3!=uv                               )||TempVer[idx[j]].texCoord2==uv){
+if(add){var v1=TempVer[idx[0]];v1.texCoord2=uv;TempVer[idx[0]]=v1;
+            v1=TempVer[idx[1]];v1.texCoord2=uv;TempVer[idx[1]]=v1;
+            v1=TempVer[idx[2]];v1.texCoord2=uv;TempVer[idx[2]]=v1;
+}
+total+=weights[2]=materialIdGroup.Count();
+}else if(((add=TempVer[idx[j]].texCoord3==emptyUV)                                                              )||TempVer[idx[j]].texCoord3==uv){
+if(add){var v1=TempVer[idx[0]];v1.texCoord3=uv;TempVer[idx[0]]=v1;
+            v1=TempVer[idx[1]];v1.texCoord3=uv;TempVer[idx[1]]=v1;
+            v1=TempVer[idx[2]];v1.texCoord3=uv;TempVer[idx[2]]=v1;
+}
+total+=weights[3]=materialIdGroup.Count();
+}
+}
+if(weights.Count>1){var v2=TempVer[idx[j]];
+        Color col=v2.color;col.r=(weights[0]/(float)total);
+if(weights.ContainsKey(1)){col.g=(weights[1]/(float)total);}
+if(weights.ContainsKey(2)){col.b=(weights[2]/(float)total);}
+if(weights.ContainsKey(3)){col.a=(weights[3]/(float)total);}
+                  v2.color=col;TempVer[idx[j]]=v2;
+}
+}}
 int GetoftIdx(Vector2Int offset){//  ..for neighbors
 if(offset.x== 0&&offset.y== 0)return 0;
 if(offset.x==-1&&offset.y== 0)return 1;

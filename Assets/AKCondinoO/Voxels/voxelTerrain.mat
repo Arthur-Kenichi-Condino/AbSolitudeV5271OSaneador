@@ -157,8 +157,10 @@ Material:
     - _TilesResolution: 1
     - _UVSec: 0
     - _ZWrite: 1
+    - _columns: 2
     - _height: 0.05
-    - _scale: 0.5
+    - _rows: 2
+    - _scale: 0.075
     - _sharpness: 1
     m_Colors:
     - _CameraPosition: {r: 0, g: 0, b: 0, a: 1}

@@ -1,6 +1,7 @@
 ﻿Shader"Voxels/voxelTerrain"{
 Properties{
-_MainTex("do not add texture",2D)="white"{}//  leave it here or Unity doesn't fill struct Input with correct values
+//  leave these here or Unity doesn't fill struct Input with correct values:
+_MainTex("do not add texture",2D)="white"{}_MainTex1("do not add texture",2D)="white"{}_MainTex2("do not add texture",2D)="white"{}_MainTex3("do not add texture",2D)="white"{}
 _columns("atlas columns",float)=2
    _rows("atlas rows"   ,float)=2
 _scale("scale",float)=1 _sharpness("triplanar blend sharpness",float)=1
@@ -113,6 +114,33 @@ c_z+=colorNBump_r.tex_axis_z;
 b_x+=colorNBump_r.bump_axis_x;
 b_y+=colorNBump_r.bump_axis_y;
 b_z+=colorNBump_r.bump_axis_z;
+if(input.uv2_MainTex1.x>=0){
+float index_g=input.uv2_MainTex1.x+_columns*input.uv2_MainTex1.y;sampledHeight height_g=sampleHeight(input.color.g,index_g,input.viewDir);sampledColorNBump colorNBump_g=sampleColorNBump(height_g.texOffset,input.color.g,index_g);
+c_x+=colorNBump_g.tex_axis_x;
+c_y+=colorNBump_g.tex_axis_y;
+c_z+=colorNBump_g.tex_axis_z;
+b_x+=colorNBump_g.bump_axis_x;
+b_y+=colorNBump_g.bump_axis_y;
+b_z+=colorNBump_g.bump_axis_z;
+}
+if(input.uv3_MainTex2.x>=0){
+float index_b=input.uv3_MainTex2.x+_columns*input.uv3_MainTex2.y;sampledHeight height_b=sampleHeight(input.color.b,index_b,input.viewDir);sampledColorNBump colorNBump_b=sampleColorNBump(height_b.texOffset,input.color.b,index_b);
+c_x+=colorNBump_b.tex_axis_x;
+c_y+=colorNBump_b.tex_axis_y;
+c_z+=colorNBump_b.tex_axis_z;
+b_x+=colorNBump_b.bump_axis_x;
+b_y+=colorNBump_b.bump_axis_y;
+b_z+=colorNBump_b.bump_axis_z;
+}
+if(input.uv4_MainTex3.x>=0){
+float index_a=input.uv4_MainTex3.x+_columns*input.uv4_MainTex3.y;sampledHeight height_a=sampleHeight(input.color.a,index_a,input.viewDir);sampledColorNBump colorNBump_a=sampleColorNBump(height_a.texOffset,input.color.a,index_a);
+c_x+=colorNBump_a.tex_axis_x;
+c_y+=colorNBump_a.tex_axis_y;
+c_z+=colorNBump_a.tex_axis_z;
+b_x+=colorNBump_a.bump_axis_x;
+b_y+=colorNBump_a.bump_axis_y;
+b_z+=colorNBump_a.bump_axis_z;
+}
 fixed4 c=(c_x)*blendWeights.x
 		+(c_y)*blendWeights.y
 		+(c_z)*blendWeights.z;
