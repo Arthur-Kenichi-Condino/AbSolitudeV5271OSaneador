@@ -51,12 +51,18 @@ internal static readonly Dictionary<UNetPrefab,(Vector2Int cCoord,Vector2Int cCo
 [SerializeField]internal voxelTerrainChunk prefab;internal static readonly Dictionary<int,voxelTerrainChunk>active=new Dictionary<int,voxelTerrainChunk>();internal static readonly List<voxelTerrainChunk>all=new List<voxelTerrainChunk>();internal static readonly LinkedList<voxelTerrainChunk>pool=new LinkedList<voxelTerrainChunk>();int poolSize=0;
 readonly marchingCubesMultithreaded[]marchingCubesThreads=new marchingCubesMultithreaded[Environment.ProcessorCount];
 void OnDisable(){
-marchingCubesMultithreaded.Stop=true;for(int i=0;i<marchingCubesThreads.Length;++i){marchingCubesThreads[i].Wait();}
+marchingCubesMultithreaded.Stop=true;for(int i=0;i<marchingCubesThreads.Length;++i){marchingCubesThreads[i]?.Wait();}
 foreach(var cnk in all){cnk.Dispose();}
+}
+void OnDestroy(){Debug.Log("on destroy terrain");
+foreach(var cnk in all){Debug.Log("destroy terrain chunk");
+cnk.mC.backgroundData.Dispose();
+cnk.mC.foregroundData.Dispose();
+}
 }
 void OnEnable(){
 biome.Seed=0;
-atlasHelper.GetAtlasData(prefab.GetComponent<MeshRenderer>().sharedMaterial);
+GetAtlasData(prefab.GetComponent<MeshRenderer>().sharedMaterial);
 foreach(var cnk in all){cnk.Prepare();}
 marchingCubesMultithreaded.Stop=false;for(int i=0;i<marchingCubesThreads.Length;++i){marchingCubesThreads[i]=new marchingCubesMultithreaded();}
 }

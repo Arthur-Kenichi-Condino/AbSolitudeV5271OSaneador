@@ -38,10 +38,10 @@ mesh=new Mesh(){bounds=localBounds=new Bounds(Vector3.zero,new Vector3(Width,Hei
 bakeJob=new BakerJob(){meshId=mesh.GetInstanceID(),};
 Prepare();
 }
-internal void Prepare(){Debug.Log("Prepare");
+internal void Prepare(){//Debug.Log("Prepare");
 mC.Assign(toChunk:this);
 }
-internal void Dispose(){Debug.Log("Dispose");
+internal void Dispose(){//Debug.Log("Dispose");
 mC.OnStop();
 }
 internal bool meshDirty;
@@ -51,9 +51,9 @@ NativeList<UInt32>TempTri{get{return mC.TempTri;}}
 void Update(){
 if(NetworkManager.Singleton.IsServer){
 if(baking){
-if(bakingHandle.IsCompleted){bakingHandle.Complete();Debug.Log("bakingHandle.IsCompleted");
+if(bakingHandle.IsCompleted){bakingHandle.Complete();//Debug.Log("bakingHandle.IsCompleted");
 baking=false;
-if(!cnkIdxChanged){Debug.Log("mesh is built now");
+if(!cnkIdxChanged){//Debug.Log("mesh is built now");
 meshDirty=false;
 }
 }
@@ -181,7 +181,7 @@ readonly materialId[]materials=new materialId[12];
 readonly double[]density=new double[2];readonly Vector3[]vertex=new Vector3[2];readonly materialId[]material=new materialId[2];readonly float[]distance=new float[2];
 readonly int[]idx=new int[3];readonly Vector3[]verPos=new Vector3[3];
 readonly Dictionary<Vector3,List<Vector2>>vertexUV=new Dictionary<Vector3,List<Vector2>>();readonly Dictionary<int,int>weights=new Dictionary<int,int>(4);
-protected override void Execute(){Debug.Log("Execute");
+protected override void Execute(){//Debug.Log("Execute");
 TempVer.Clear();UInt32 vertexCount=0;
 TempTri.Clear();
 Vector2Int posOffset=Vector2Int.zero;
