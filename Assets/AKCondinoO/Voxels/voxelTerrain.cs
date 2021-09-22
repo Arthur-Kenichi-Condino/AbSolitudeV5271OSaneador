@@ -51,7 +51,7 @@ internal static readonly Dictionary<UNetPrefab,(Vector2Int cCoord,Vector2Int cCo
 [SerializeField]internal voxelTerrainChunk prefab;internal static readonly Dictionary<int,voxelTerrainChunk>active=new Dictionary<int,voxelTerrainChunk>();internal static readonly List<voxelTerrainChunk>all=new List<voxelTerrainChunk>();internal static readonly LinkedList<voxelTerrainChunk>pool=new LinkedList<voxelTerrainChunk>();int poolSize=0;
 readonly marchingCubesMultithreaded[]marchingCubesThreads=new marchingCubesMultithreaded[Environment.ProcessorCount];
 void OnDisable(){
-marchingCubesMultithreaded.Stop=true;for(int i=0;i<marchingCubesThreads.Length;++i){marchingCubesThreads[i]?.Wait();}
+marchingCubesMultithreaded.Stop=true;for(int i=0;i<marchingCubesThreads.Length;++i){marchingCubesThreads[i]?.Wait();}marchingCubesMultithreaded.Clear();
 foreach(var cnk in all){cnk.Dispose();}
 }
 void OnDestroy(){Debug.Log("on destroy terrain");
@@ -67,10 +67,27 @@ foreach(var cnk in all){cnk.Prepare();}
 marchingCubesMultithreaded.Stop=false;for(int i=0;i<marchingCubesThreads.Length;++i){marchingCubesThreads[i]=new marchingCubesMultithreaded();}
 }
 void Update(){
+if(!NetworkManager.Singleton.IsServer
+ &&!NetworkManager.Singleton.IsClient){
+if(poolSize!=0){
+marchingCubesMultithreaded.Stop=true;for(int i=0;i<marchingCubesThreads.Length;++i){marchingCubesThreads[i]?.Wait();}marchingCubesMultithreaded.Clear();
+foreach(var cnk in all){cnk.Dispose();
+cnk.mC.backgroundData.Dispose();
+cnk.mC.foregroundData.Dispose();
+DestroyImmediate(cnk);
+}all.Clear();
+active.Clear();
+pool.Clear();
+poolSize=0;
+marchingCubesMultithreaded.Stop=false;for(int i=0;i<marchingCubesThreads.Length;++i){marchingCubesThreads[i]=new marchingCubesMultithreaded();}
+}
+}
 if(NetworkManager.Singleton.IsServer){
+if(poolSize==0){
 int requiredPoolSize=NetworkManager.Singleton.GetComponent<UNetTransport>().MaxConnections*(expropriationDistance.x*2+1)*(expropriationDistance.y*2+1);
 for(int i=poolSize;i<requiredPoolSize;poolSize=++i){
 voxelTerrainChunk cnk;all.Add(cnk=Instantiate(prefab));cnk.expropriated=pool.AddLast(cnk);cnk.network.Spawn();
+}
 }
 foreach(var movement in bounds){if(movement.Value==null)continue;var moved=movement.Value;Vector2Int pCoord_Pre=moved.Value.cCoord_Pre;Vector2Int pCoord=moved.Value.cCoord;
 for(Vector2Int eCoord=new Vector2Int(),cCoord1=new Vector2Int();eCoord.y<=expropriationDistance.y;eCoord.y++){for(cCoord1.y=-eCoord.y+pCoord_Pre.y;cCoord1.y<=eCoord.y+pCoord_Pre.y;cCoord1.y+=eCoord.y*2){
@@ -107,6 +124,27 @@ if(iCoord.x==0){break;}}}
 if(iCoord.y==0){break;}}}
 }
 }
+}
+internal static void OnPlayerDisconnected(UNetPrefab player){Debug.Log("OnPlayerDisconnected:");
+var pCoord=vecPosTocCoord(player.transform.position);
+for(Vector2Int iCoord=new Vector2Int(),cCoord1=new Vector2Int();iCoord.y<=instantiationDistance.y;iCoord.y++){for(cCoord1.y=-iCoord.y+pCoord.y;cCoord1.y<=iCoord.y+pCoord.y;cCoord1.y+=iCoord.y*2){
+for(           iCoord.x=0                                      ;iCoord.x<=instantiationDistance.x;iCoord.x++){for(cCoord1.x=-iCoord.x+pCoord.x;cCoord1.x<=iCoord.x+pCoord.x;cCoord1.x+=iCoord.x*2){
+if(Math.Abs(cCoord1.x)>=MaxcCoordx||
+   Math.Abs(cCoord1.y)>=MaxcCoordy){//Debug.Log("do not try to expropriate at out of world cCoord:.."+cCoord1);
+goto _skip;
+}
+//Debug.Log("try to expropriate chunk at:.."+cCoord1);
+if(bounds.All(b=>{return(Mathf.Abs(cCoord1.x-b.Key.cCoord.x)>instantiationDistance.x||
+                         Mathf.Abs(cCoord1.y-b.Key.cCoord.y)>instantiationDistance.y);})){/*Debug.Log("expropriation needed for chunk at:.."+cCoord1);*/int cnkIdx1=GetcnkIdx(cCoord1.x,cCoord1.y);if(active.TryGetValue(cnkIdx1,out voxelTerrainChunk cnk)){/*Debug.Log("do expropriate chunk of index:.."+cnkIdx1);*/if(cnk.expropriated==null){cnk.expropriated=pool.AddLast(cnk);/*Debug.Log("expropriated chunk of index:.."+cnkIdx1);*/
+}else{//Debug.Log("but it is already expropriated, the chunk of index:.."+cnkIdx1);
+}
+}else{//Debug.Log("no chunk to expropriate of index:.."+cnkIdx1);
+}
+}else{//Debug.Log("no need to expropriate chunk at:.."+cCoord1);
+}
+_skip:{}
+if(iCoord.x==0){break;}}}
+if(iCoord.y==0){break;}}}
 }
 internal static readonly baseBiome biome=new baseBiome();
 internal class baseBiome{

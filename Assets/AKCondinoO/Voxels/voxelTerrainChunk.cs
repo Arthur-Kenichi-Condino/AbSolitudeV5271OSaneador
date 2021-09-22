@@ -38,11 +38,19 @@ mesh=new Mesh(){bounds=localBounds=new Bounds(Vector3.zero,new Vector3(Width,Hei
 bakeJob=new BakerJob(){meshId=mesh.GetInstanceID(),};
 Prepare();
 }
+internal bool isPrepared;
 internal void Prepare(){//Debug.Log("Prepare");
+if(!isPrepared){
+isPrepared=true;
 mC.Assign(toChunk:this);
 }
+}
 internal void Dispose(){//Debug.Log("Dispose");
-mC.OnStop();
+if(isPrepared){
+isPrepared=false;
+bakingHandle.Complete();
+mC.OnStop();/*  :mC has invalid data now:  */if(meshDirty){cnkIdxChanged=true;marchingCubesRunning=false;baking=false;}
+}
 }
 internal bool meshDirty;
 bool marchingCubesRunning;
@@ -50,6 +58,7 @@ NativeList<vertex>TempVer{get{return mC.TempVer;}}
 NativeList<UInt32>TempTri{get{return mC.TempTri;}}
 void Update(){
 if(NetworkManager.Singleton.IsServer){
+if(isPrepared){
 if(baking){
 if(bakingHandle.IsCompleted){bakingHandle.Complete();//Debug.Log("bakingHandle.IsCompleted");
 baking=false;
@@ -71,6 +80,7 @@ mC.cCoord_bg=cCoord;
 mC.cnkRgn_bg=cnkRgn;
 marchingCubesRunning=true;
 marchingCubesMultithreaded.Schedule(mC);
+}
 }
 }
 }
@@ -111,8 +121,8 @@ TempVer=new NativeList<vertex>(Allocator.Persistent);
 TempTri=new NativeList<UInt32>(Allocator.Persistent);
 }
 internal void OnStop(){
-TempVer.Dispose();
-TempTri.Dispose();
+if(TempVer.IsCreated)TempVer.Dispose();
+if(TempTri.IsCreated)TempTri.Dispose();
 }
 internal Vector2Int cCoord_bg;
 internal Vector2Int cnkRgn_bg;

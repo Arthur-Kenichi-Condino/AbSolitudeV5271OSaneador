@@ -8,7 +8,7 @@ namespace AKCondinoO{internal class core:MonoBehaviour{
 internal abstract class baseMultithreaded<T>where T:backgroundObject{
 static bool Stop_v=false;internal static bool Stop{get{bool tmp;lock(Stop_Syn){tmp=Stop_v;      }return tmp;}
                                                    set{         lock(Stop_Syn){    Stop_v=value;}if(value){enqueued.Set();}}}static readonly object Stop_Syn=new object();
-static readonly ConcurrentQueue<T>queued=new ConcurrentQueue<T>();static readonly AutoResetEvent enqueued=new AutoResetEvent(false);internal static void Schedule(T next){next.backgroundData.Reset();next.foregroundData.Set();queued.Enqueue(next);enqueued.Set();}
+static readonly ConcurrentQueue<T>queued=new ConcurrentQueue<T>();static readonly AutoResetEvent enqueued=new AutoResetEvent(false);internal static void Schedule(T next){next.backgroundData.Reset();next.foregroundData.Set();queued.Enqueue(next);enqueued.Set();}internal static void Clear(){while(queued.TryDequeue(out T dequeued)){dequeued.foregroundData.WaitOne(0);dequeued.backgroundData.Set();}}
 readonly Task task;internal baseMultithreaded(){task=Task.Factory.StartNew(BG,TaskCreationOptions.LongRunning);}internal void Wait(){try{task.Wait();Debug.Log("task completed successfully");}catch(Exception e){Debug.LogError(e?.Message+"\n"+e?.StackTrace+"\n"+e?.Source);}}internal bool IsRunning(){return Stop==false&&task!=null&&!task.IsCompleted;}
 void BG(){Thread.CurrentThread.IsBackground=false;Thread.CurrentThread.Priority=System.Threading.ThreadPriority.BelowNormal;
 //Debug.Log("begin bg task");

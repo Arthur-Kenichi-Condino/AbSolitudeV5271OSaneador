@@ -4,6 +4,10 @@ using static AKCondinoO.core;
 using static AKCondinoO.Voxels.voxelTerrain;
 using static AKCondinoO.Voxels.voxelTerrainChunk;
 namespace AKCondinoO{internal class UNetPrefab:NetworkBehaviour{
+void OnDisable(){
+bounds.Remove(this);
+OnPlayerDisconnected(this);
+}
 internal Bounds localBounds;
 void Awake(){
 localBounds=new Bounds(Vector3.zero,new Vector3((instantiationDistance.x*2+1)*Width,Height,(instantiationDistance.y*2+1)*Depth));

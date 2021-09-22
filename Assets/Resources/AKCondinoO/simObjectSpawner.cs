@@ -13,6 +13,10 @@ StopCoroutine(instantiation);instantiation=null;
 ids.OnExitSave(idsThread);
 uniqueIdsMultithreaded.Stop=true;idsThread?.Wait();
 }
+void OnDestroy(){Debug.Log("on destroy sim object spawner");
+ids.backgroundData.Dispose();
+ids.foregroundData.Dispose();
+}
 void Awake(){
 foreach(var o in Resources.LoadAll("AKCondinoO/",typeof(GameObject))){var gO=(GameObject)o;var sO=gO.GetComponent<simObject>();if(sO==null)continue;
 Type t=sO.GetType();
