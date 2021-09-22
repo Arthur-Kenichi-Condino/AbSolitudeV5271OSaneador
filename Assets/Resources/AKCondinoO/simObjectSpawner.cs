@@ -8,10 +8,12 @@ using static AKCondinoO.core;
 using static AKCondinoO.Voxels.voxelTerrain;
 namespace AKCondinoO{internal class simObjectSpawner:MonoBehaviour{
 internal static readonly Dictionary<Type,GameObject>prefabs=new Dictionary<Type,GameObject>();internal static readonly List<simObject>all=new List<simObject>();internal static readonly Dictionary<Type,LinkedList<simObject>>pool=new Dictionary<Type,LinkedList<simObject>>();
-void OnDisable(){
+void OnDisable(){Debug.Log("spawner disabled");
+if(instantiation!=null){Debug.Log("spawner disconnected");
 StopCoroutine(instantiation);instantiation=null;
 ids.OnExitSave(idsThread);
-uniqueIdsMultithreaded.Stop=true;idsThread?.Wait();
+uniqueIdsMultithreaded.Stop=true;idsThread?.Wait();uniqueIdsMultithreaded.Clear();
+}
 }
 void OnDestroy(){Debug.Log("on destroy sim object spawner");
 ids.backgroundData.Dispose();
@@ -23,11 +25,6 @@ Type t=sO.GetType();
 prefabs[t]=gO;pool[t]=new LinkedList<simObject>();
 }
 waitUntilInstantiationRequested=new WaitUntil(()=>instantiating);waitUntilIdsSaved=new WaitUntil(()=>ids.backgroundData.WaitOne(0));
-}
-void OnEnable(){
-uniqueIdsMultithreaded.Stop=false;idsThread=new uniqueIdsMultithreaded();
-ids.Init();
-instantiation=StartCoroutine(Instantiation());
 }
 [SerializeField]Vector3   DEBUG_CREATE_SIM_OBJECT_ROTATION;
 [SerializeField]Vector3   DEBUG_CREATE_SIM_OBJECT_POSITION;
@@ -43,7 +40,20 @@ DEBUG_CREATE_SIM_OBJECT=null;
 }
 if(reloadTimer>0){reloadTimer-=Time.deltaTime;}
 loadingRequired=loadingRequired||reloadTimer<=0||bounds.Any(b=>b.Value!=null);
+if(!NetworkManager.Singleton.IsServer
+ &&!NetworkManager.Singleton.IsClient){
+if(instantiation!=null){Debug.Log("spawner disconnected");
+StopCoroutine(instantiation);instantiation=null;
+ids.OnExitSave(idsThread);
+uniqueIdsMultithreaded.Stop=true;idsThread?.Wait();uniqueIdsMultithreaded.Clear();
+}
+}
 if(NetworkManager.Singleton.IsServer){
+if(instantiation==null){Debug.Log("spawner connected");
+uniqueIdsMultithreaded.Stop=false;idsThread=new uniqueIdsMultithreaded();
+ids.Init();
+instantiation=StartCoroutine(Instantiation());
+}
 //Debug.Log("instantiating:"+instantiating);
 if(!instantiating){
 if(loadingRequired){Debug.Log("loadingRequired");
