@@ -49,7 +49,7 @@ uniqueIdsMultithreaded.Stop=true;idsThread?.Wait();uniqueIdsMultithreaded.Clear(
 }
 }
 if(NetworkManager.Singleton.IsServer){
-if(instantiation==null){Debug.Log("spawner connected");
+if(instantiation==null&&!string.IsNullOrEmpty(saveName)){Debug.Log("spawner connected");
 uniqueIdsMultithreaded.Stop=false;idsThread=new uniqueIdsMultithreaded();
 ids.Init();
 instantiation=StartCoroutine(Instantiation());
