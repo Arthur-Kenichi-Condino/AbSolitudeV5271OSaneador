@@ -3,10 +3,12 @@ using LibNoise.Generator;
 using LibNoise.Operator;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using Unity.Netcode;
 using Unity.Netcode.Transports.UNET;
 using UnityEngine;
+using static AKCondinoO.core;
 using static AKCondinoO.Voxels.voxelTerrain.atlasHelper;
 using static AKCondinoO.Voxels.voxelTerrainChunk;
 using static AKCondinoO.Voxels.voxelTerrainChunk.marchingCubesMultithreaded;
@@ -84,6 +86,12 @@ marchingCubesMultithreaded.Stop=false;for(int i=0;i<marchingCubesThreads.Length;
 }
 if(NetworkManager.Singleton.IsServer){
 if(poolSize==0){
+saveName="terra";
+savePath=string.Format("{0}{1}/",saveLocation,saveName);Debug.Log("save path: "+savePath);
+Directory.CreateDirectory(savePath);
+perChunkSavePath=string.Format("{0}{1}/",savePath,"chunks");Debug.Log("per chunk save path: "+perChunkSavePath);
+Directory.CreateDirectory(perChunkSavePath);
+sObjectsSavePath=string.Format("{0}{1}/",savePath,"sObjpd");Debug.Log("simObject save path: "+sObjectsSavePath);
 int requiredPoolSize=NetworkManager.Singleton.GetComponent<UNetTransport>().MaxConnections*(expropriationDistance.x*2+1)*(expropriationDistance.y*2+1);
 for(int i=poolSize;i<requiredPoolSize;poolSize=++i){
 voxelTerrainChunk cnk;all.Add(cnk=Instantiate(prefab));cnk.expropriated=pool.AddLast(cnk);cnk.network.Spawn();

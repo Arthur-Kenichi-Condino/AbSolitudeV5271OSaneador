@@ -5,6 +5,11 @@ using System.Threading;
 using System.Threading.Tasks;
 using UnityEngine;
 namespace AKCondinoO{internal class core:MonoBehaviour{
+internal static readonly string saveLocation=Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData).Replace("\\","/")+"/AbSolitudeV5271OSaneador/";
+internal static string saveName;
+internal static string savePath;
+internal static string perChunkSavePath;
+internal static string sObjectsSavePath;
 internal abstract class baseMultithreaded<T>where T:backgroundObject{
 static bool Stop_v=false;internal static bool Stop{get{bool tmp;lock(Stop_Syn){tmp=Stop_v;      }return tmp;}
                                                    set{         lock(Stop_Syn){    Stop_v=value;}if(value){enqueued.Set();}}}static readonly object Stop_Syn=new object();
