@@ -98,7 +98,13 @@ internal readonly uniqueIds ids=new uniqueIds();
 internal class uniqueIds:backgroundObject{
 internal Dictionary<Type,ulong>usedIds;internal Dictionary<Type,List<ulong>>deadIds;
 internal ulong Generate(Type forType){
-ulong id=0;
+ulong id=0;if(!usedIds.ContainsKey(forType)){usedIds.Add(forType,1);}else{
+if(deadIds.ContainsKey(forType)&&deadIds[forType].Count>0){var deadForType=deadIds[forType];
+id=deadForType[deadForType.Count-1];deadForType.RemoveAt(deadForType.Count-1);
+}else{
+id=usedIds[forType]++;
+}
+}
 return id;}
 internal void Init(){
 usedIds=null;
