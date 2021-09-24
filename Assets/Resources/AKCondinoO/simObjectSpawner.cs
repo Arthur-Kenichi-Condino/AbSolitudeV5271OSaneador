@@ -1,6 +1,8 @@
+using Newtonsoft.Json;
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using Unity.Netcode;
 using UnityEngine;
@@ -94,13 +96,13 @@ result.fileIndex=fromFoundFile;
 return result;}
 internal readonly uniqueIds ids=new uniqueIds();
 internal class uniqueIds:backgroundObject{
-internal Dictionary<Type,ulong>used;internal Dictionary<Type,List<ulong>>unplaced;
+internal Dictionary<Type,ulong>usedIds;internal Dictionary<Type,List<ulong>>deadIds;
 internal ulong Generate(Type forType){
 ulong id=0;
 return id;}
 internal void Init(){
-used=null;
-unplaced=null;
+usedIds=null;
+deadIds=null;
 uniqueIdsMultithreaded.Schedule(this);
 }
 internal void OnExitSave(uniqueIdsMultithreaded thread){
@@ -111,6 +113,7 @@ backgroundData.WaitOne();uniqueIdsMultithreaded.Schedule(this);backgroundData.Wa
 }
 internal uniqueIdsMultithreaded idsThread;
 internal class uniqueIdsMultithreaded:baseMultithreaded<uniqueIds>{
+readonly JsonSerializer jsonSerializer=new JsonSerializer();
 protected override void Renew(uniqueIds next){
 }
 protected override void Release(){
@@ -118,8 +121,38 @@ protected override void Release(){
 protected override void Cleanup(){
 }
 protected override void Execute(){
-if(current.used==null){Debug.Log("load ids");
+string usedIdsFile=string.Format("{0}{1}",savePath,"usedIds.JsonSerializer");Debug.Log("used ids file: "+usedIdsFile);
+string deadIdsFile=string.Format("{0}{1}",savePath,"deadIds.JsonSerializer");Debug.Log("dead ids file: "+deadIdsFile);
+if(current.usedIds==null){Debug.Log("load used ids");
+using(var file=new FileStream(usedIdsFile,FileMode.OpenOrCreate,FileAccess.ReadWrite,FileShare.None)){
+if(file.Length>0){
+using(var reader=new StreamReader(file)){using(var json=new JsonTextReader(reader)){
+current.usedIds=(Dictionary<Type,ulong>)jsonSerializer.Deserialize(json,typeof(Dictionary<Type,ulong>));
+}}
 }else{
+current.usedIds=new Dictionary<Type,ulong>();
+}
+}
+using(var file=new FileStream(deadIdsFile,FileMode.OpenOrCreate,FileAccess.ReadWrite,FileShare.None)){
+if(file.Length>0){
+using(var reader=new StreamReader(file)){using(var json=new JsonTextReader(reader)){
+current.deadIds=(Dictionary<Type,List<ulong>>)jsonSerializer.Deserialize(json,typeof(Dictionary<Type,List<ulong>>));
+}}
+}else{
+current.deadIds=new Dictionary<Type,List<ulong>>();
+}
+}
+}else{Debug.Log("save used ids");
+using(var file=new FileStream(usedIdsFile,FileMode.OpenOrCreate,FileAccess.ReadWrite,FileShare.None)){
+using(var writer=new StreamWriter(file)){using(var json=new JsonTextWriter(writer)){
+jsonSerializer.Serialize(json,current.usedIds,typeof(Dictionary<Type,ulong>));
+}}
+}
+using(var file=new FileStream(deadIdsFile,FileMode.OpenOrCreate,FileAccess.ReadWrite,FileShare.None)){
+using(var writer=new StreamWriter(file)){using(var json=new JsonTextWriter(writer)){
+jsonSerializer.Serialize(json,current.deadIds,typeof(Dictionary<Type,List<ulong>>));
+}}
+}
 }
 }
 }
