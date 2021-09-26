@@ -7,12 +7,15 @@ using System.Linq;
 using Unity.Netcode;
 using UnityEngine;
 using static AKCondinoO.core;
+using static AKCondinoO.simObject;
 using static AKCondinoO.Voxels.voxelTerrain;
 namespace AKCondinoO{internal class simObjectSpawner:MonoBehaviour{
 internal static readonly Dictionary<Type,GameObject>prefabs=new Dictionary<Type,GameObject>();internal static readonly List<simObject>all=new List<simObject>();internal static readonly Dictionary<Type,LinkedList<simObject>>pool=new Dictionary<Type,LinkedList<simObject>>();
+readonly persistentDataMultithreaded[]persistentDataThreads=new persistentDataMultithreaded[Environment.ProcessorCount];
 void OnDisable(){Debug.Log("spawner disabled");
 if(instantiation!=null){Debug.Log("spawner disconnected");
 StopCoroutine(instantiation);instantiation=null;
+persistentDataMultithreaded.Stop=true;for(int i=0;i<persistentDataThreads.Length;++i){persistentDataThreads[i]?.Wait();}persistentDataMultithreaded.Clear();
 ids.OnExitSave(idsThread);
 uniqueIdsMultithreaded.Stop=true;idsThread?.Wait();uniqueIdsMultithreaded.Clear();
 }
@@ -46,6 +49,7 @@ if(!NetworkManager.Singleton.IsServer
  &&!NetworkManager.Singleton.IsClient){
 if(instantiation!=null){Debug.Log("spawner disconnected");
 StopCoroutine(instantiation);instantiation=null;
+persistentDataMultithreaded.Stop=true;for(int i=0;i<persistentDataThreads.Length;++i){persistentDataThreads[i]?.Wait();}persistentDataMultithreaded.Clear();
 ids.OnExitSave(idsThread);
 uniqueIdsMultithreaded.Stop=true;idsThread?.Wait();uniqueIdsMultithreaded.Clear();
 }
@@ -55,6 +59,7 @@ if(instantiation==null&&!string.IsNullOrEmpty(saveName)){Debug.Log("spawner conn
 uniqueIdsMultithreaded.Stop=false;idsThread=new uniqueIdsMultithreaded();
 ids.Init();
 instantiation=StartCoroutine(Instantiation());
+persistentDataMultithreaded.Stop=false;for(int i=0;i<persistentDataThreads.Length;++i){persistentDataThreads[i]=new persistentDataMultithreaded();}
 }
 //Debug.Log("instantiating:"+instantiating);
 if(!instantiating){
@@ -67,7 +72,7 @@ loadingRequired=false;
 }
 }
 bool instantiating;WaitUntil waitUntilInstantiationRequested;WaitUntil waitUntilIdsSaved;
-Coroutine instantiation;IEnumerator Instantiation(){
+internal static Coroutine instantiation;IEnumerator Instantiation(){
 Loop:{}yield return waitUntilInstantiationRequested;/*Debug.Log("loading ids");*/yield return waitUntilIdsSaved;Debug.Log("begin instantiation");
 while(spawnerQueue.Count>0){var toSpawn=spawnerQueue.Dequeue();
 foreach(var at in toSpawn.at){

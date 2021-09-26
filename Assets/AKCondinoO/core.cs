@@ -1,15 +1,41 @@
 //  AIO game
 using System;
 using System.Collections.Concurrent;
+using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
+using Unity.Netcode;
 using UnityEngine;
+using static AKCondinoO.simObjectSpawner;
+using static AKCondinoO.Voxels.voxelTerrain;
 namespace AKCondinoO{internal class core:MonoBehaviour{
 internal static readonly string saveLocation=Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData).Replace("\\","/")+"/AbSolitudeV5271OSaneador/";
 internal static string saveName;
 internal static string savePath;
 internal static string perChunkSavePath;
 internal static string sObjectsSavePath;
+void Update(){
+if(!NetworkManager.Singleton.IsServer
+ &&!NetworkManager.Singleton.IsClient){
+if(!string.IsNullOrEmpty(saveName)&&/*  terrain stopped:  */poolSize==0&&/*  sim objects spawner stopped:  */instantiation==null){Debug.Log("game closed to main menu");
+saveName=null;
+savePath=null;
+perChunkSavePath=null;
+sObjectsSavePath=null;
+}
+}
+if(NetworkManager.Singleton.IsServer){
+if(string.IsNullOrEmpty(saveName)){
+saveName="terra";
+savePath=string.Format("{0}{1}/",saveLocation,saveName);Debug.Log("save path: "+savePath);
+perChunkSavePath=string.Format("{0}{1}/",savePath,"chunks");Debug.Log("per chunk save path: "+perChunkSavePath);
+sObjectsSavePath=string.Format("{0}{1}/",savePath,"sObjpd");Debug.Log("simObject save path: "+sObjectsSavePath);
+Directory.CreateDirectory(savePath);
+Directory.CreateDirectory(perChunkSavePath);
+Directory.CreateDirectory(sObjectsSavePath);
+}
+}
+}
 internal abstract class baseMultithreaded<T>where T:backgroundObject{
 static bool Stop_v=false;internal static bool Stop{get{bool tmp;lock(Stop_Syn){tmp=Stop_v;      }return tmp;}
                                                    set{         lock(Stop_Syn){    Stop_v=value;}if(value){enqueued.Set();}}}static readonly object Stop_Syn=new object();

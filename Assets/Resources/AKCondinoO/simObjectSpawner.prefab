@@ -43,3 +43,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: de9a07bc03d5fc74eb6a6015b3029642, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  DEBUG_CREATE_SIM_OBJECT_ROTATION: {x: 0, y: 0, z: 0}
+  DEBUG_CREATE_SIM_OBJECT_POSITION: {x: 0, y: 0, z: 0}
+  DEBUG_CREATE_SIM_OBJECT_SCALE: {x: 1, y: 1, z: 1}
+  DEBUG_CREATE_SIM_OBJECT: {fileID: 0}
+  reloadInterval: 5

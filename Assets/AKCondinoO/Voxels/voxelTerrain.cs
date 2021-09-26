@@ -50,7 +50,7 @@ internal static void ValidateCoordAxis(ref int axis,ref int coord,int axisLength
 }else if(coord>=axisLength){axis+=axisLength*Mathf.FloorToInt(Math.Abs(coord)/(float)axisLength);coord=(coord%axisLength);}
 }
 internal static readonly Dictionary<UNetPrefab,(Vector2Int cCoord,Vector2Int cCoord_Pre)?>bounds=new Dictionary<UNetPrefab,(Vector2Int,Vector2Int)?>();
-[SerializeField]internal voxelTerrainChunk prefab;internal static readonly Dictionary<int,voxelTerrainChunk>active=new Dictionary<int,voxelTerrainChunk>();internal static readonly List<voxelTerrainChunk>all=new List<voxelTerrainChunk>();internal static readonly LinkedList<voxelTerrainChunk>pool=new LinkedList<voxelTerrainChunk>();int poolSize=0;
+[SerializeField]internal voxelTerrainChunk prefab;internal static readonly Dictionary<int,voxelTerrainChunk>active=new Dictionary<int,voxelTerrainChunk>();internal static readonly List<voxelTerrainChunk>all=new List<voxelTerrainChunk>();internal static readonly LinkedList<voxelTerrainChunk>pool=new LinkedList<voxelTerrainChunk>();internal static int poolSize=0;
 readonly marchingCubesMultithreaded[]marchingCubesThreads=new marchingCubesMultithreaded[Environment.ProcessorCount];
 void OnDisable(){
 marchingCubesMultithreaded.Stop=true;for(int i=0;i<marchingCubesThreads.Length;++i){marchingCubesThreads[i]?.Wait();}marchingCubesMultithreaded.Clear();
@@ -61,9 +61,9 @@ foreach(var cnk in all){Debug.Log("destroy terrain chunk");
 cnk.mC.backgroundData.Dispose();
 cnk.mC.foregroundData.Dispose();
 }
+biome.Dispose();
 }
 void OnEnable(){
-biome.Seed=0;
 GetAtlasData(prefab.GetComponent<MeshRenderer>().sharedMaterial);
 foreach(var cnk in all){cnk.Prepare();}
 marchingCubesMultithreaded.Stop=false;for(int i=0;i<marchingCubesThreads.Length;++i){marchingCubesThreads[i]=new marchingCubesMultithreaded();}
@@ -71,7 +71,7 @@ marchingCubesMultithreaded.Stop=false;for(int i=0;i<marchingCubesThreads.Length;
 void Update(){
 if(!NetworkManager.Singleton.IsServer
  &&!NetworkManager.Singleton.IsClient){
-if(poolSize!=0){
+if(poolSize!=0){Debug.Log("terrain disconnected");
 marchingCubesMultithreaded.Stop=true;for(int i=0;i<marchingCubesThreads.Length;++i){marchingCubesThreads[i]?.Wait();}marchingCubesMultithreaded.Clear();
 foreach(var cnk in all){cnk.Dispose();
 cnk.mC.backgroundData.Dispose();
@@ -81,26 +81,17 @@ DestroyImmediate(cnk);
 active.Clear();
 pool.Clear();
 poolSize=0;
-saveName=null;
-savePath=null;
-perChunkSavePath=null;
-sObjectsSavePath=null;
-marchingCubesMultithreaded.Stop=false;for(int i=0;i<marchingCubesThreads.Length;++i){marchingCubesThreads[i]=new marchingCubesMultithreaded();}
 }
 }
 if(NetworkManager.Singleton.IsServer){
-if(poolSize==0){
-saveName="terra";
-savePath=string.Format("{0}{1}/",saveLocation,saveName);Debug.Log("save path: "+savePath);
-perChunkSavePath=string.Format("{0}{1}/",savePath,"chunks");Debug.Log("per chunk save path: "+perChunkSavePath);
-sObjectsSavePath=string.Format("{0}{1}/",savePath,"sObjpd");Debug.Log("simObject save path: "+sObjectsSavePath);
-Directory.CreateDirectory(savePath);
-Directory.CreateDirectory(perChunkSavePath);
-Directory.CreateDirectory(sObjectsSavePath);
+if(poolSize==0&&!string.IsNullOrEmpty(saveName)){Debug.Log("terrain connected");
+biome.Dispose();
+biome.Seed=0;
 int requiredPoolSize=NetworkManager.Singleton.GetComponent<UNetTransport>().MaxConnections*(expropriationDistance.x*2+1)*(expropriationDistance.y*2+1);
 for(int i=poolSize;i<requiredPoolSize;poolSize=++i){
 voxelTerrainChunk cnk;all.Add(cnk=Instantiate(prefab));cnk.expropriated=pool.AddLast(cnk);cnk.network.Spawn();
 }
+marchingCubesMultithreaded.Stop=false;for(int i=0;i<marchingCubesThreads.Length;++i){marchingCubesThreads[i]=new marchingCubesMultithreaded();}
 }
 foreach(var movement in bounds){if(movement.Value==null)continue;var moved=movement.Value;Vector2Int pCoord_Pre=moved.Value.cCoord_Pre;Vector2Int pCoord=moved.Value.cCoord;
 for(Vector2Int eCoord=new Vector2Int(),cCoord1=new Vector2Int();eCoord.y<=expropriationDistance.y;eCoord.y++){for(cCoord1.y=-eCoord.y+pCoord_Pre.y;cCoord1.y<=eCoord.y+pCoord_Pre.y;cCoord1.y+=eCoord.y*2){
@@ -161,6 +152,9 @@ if(iCoord.y==0){break;}}}
 }
 internal static readonly baseBiome biome=new baseBiome();
 internal class baseBiome{
+internal void Dispose(){
+foreach(var module in modules){module?.Dispose();}modules.Clear();
+}
 int seed_v;internal int Seed{get{return seed_v;}
 set{seed_v=value;Debug.Log("seed set: "+seed_v);
 random[0]=new System.Random(seed_v);
