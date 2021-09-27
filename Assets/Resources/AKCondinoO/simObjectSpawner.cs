@@ -110,6 +110,7 @@ id=deadForType[deadForType.Count-1];deadForType.RemoveAt(deadForType.Count-1);
 id=usedIds[forType]++;
 }
 }
+if(!deadIds.ContainsKey(forType)){deadIds.Add(forType,new List<ulong>());}deadIds[forType].Add(id);
 return id;}
 internal void Init(){
 usedIds=null;
