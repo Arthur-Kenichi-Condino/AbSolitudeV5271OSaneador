@@ -56,6 +56,8 @@ if(id!=null){//Debug.Log("I exist");
 if(loading){Debug.Log("background loading in progress...");
 if(fileData.backgroundData.WaitOne(0)){Debug.Log("got loaded data to set");
 loading=false;
+fileData.Getserializable();
+fileData.Filltransform(transform);
 }
 }else if(fileIndex!=null){Debug.Log("I need to load file data");
 if(fileData.backgroundData.WaitOne(0)){Debug.Log("start loading");
@@ -72,6 +74,7 @@ fileData.Copytransform(transform);
 }
 internal readonly persistentData fileData=new persistentData();
 internal class persistentData:backgroundObject{
+internal readonly object syn=new object();
 internal readonly updatedTransform transform=new updatedTransform();internal class updatedTransform{
 public Quaternion rotation{get;set;}
 public Vector3    position{get;set;}
@@ -119,6 +122,7 @@ protected override void Release(){
 protected override void Cleanup(){
 }
 protected override void Execute(){//Debug.Log("Execute()");
+lock(current.syn){
 bool loaded=false;
 string transformFile;
 string specsDataFile=string.Format("{0}({1},{2}).JsonSerializer",sObjectsSavePath,current.type,fileIndex.id);Debug.Log("specifications data file: "+specsDataFile);
@@ -172,6 +176,7 @@ jsonSerializer.Serialize(json,specsData,typeof(serializableSpecsData));
 }}
 }
 var f=fileIndex;f.cnkIdx=null;fileIndex=f;Debug.Log("set persistent data to be saved from now on");
+}
 }
 }
 }}

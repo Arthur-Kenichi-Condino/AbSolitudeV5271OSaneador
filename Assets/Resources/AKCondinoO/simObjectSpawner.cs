@@ -11,7 +11,7 @@ using static AKCondinoO.core;
 using static AKCondinoO.simObject;
 using static AKCondinoO.Voxels.voxelTerrain;
 namespace AKCondinoO{internal class simObjectSpawner:MonoBehaviour{
-internal static readonly Dictionary<Type,GameObject>prefabs=new Dictionary<Type,GameObject>();internal static readonly List<simObject>all=new List<simObject>();internal static readonly Dictionary<Type,LinkedList<simObject>>pool=new Dictionary<Type,LinkedList<simObject>>();
+internal static readonly Dictionary<Type,GameObject>prefabs=new Dictionary<Type,GameObject>();internal static readonly Dictionary<ulong,simObject>active=new Dictionary<ulong,simObject>();internal static readonly List<simObject>all=new List<simObject>();internal static readonly Dictionary<Type,LinkedList<simObject>>pool=new Dictionary<Type,LinkedList<simObject>>();
 readonly persistentDataMultithreaded[]persistentDataThreads=new persistentDataMultithreaded[Environment.ProcessorCount];
 void OnDisable(){Debug.Log("spawner disabled");
 if(instantiation!=null){Debug.Log("spawner disconnected");
@@ -101,6 +101,8 @@ id=fromFoundFile.Value.id;
 }
 result.id=id;
 result.fileIndex=fromFoundFile;
+search.loadedFilesSyn.Add(result.fileData.syn);
+active[id]=result;
 return result;}
 internal readonly uniqueIds ids=new uniqueIds();
 internal class uniqueIds:backgroundObject{
@@ -113,8 +115,10 @@ id=deadForType[deadForType.Count-1];deadForType.RemoveAt(deadForType.Count-1);
 id=usedIds[forType]++;
 }
 }
-if(!deadIds.ContainsKey(forType)){deadIds.Add(forType,new List<ulong>());}deadIds[forType].Add(id);
 return id;}
+internal void Recycle(ulong id,Type forType){
+if(!deadIds.ContainsKey(forType)){deadIds.Add(forType,new List<ulong>());}deadIds[forType].Add(id);
+}
 internal void Init(){
 usedIds=null;
 deadIds=null;
@@ -169,6 +173,20 @@ jsonSerializer.Serialize(json,current.deadIds,typeof(Dictionary<Type,List<ulong>
 }}
 }
 }
+}
+}
+internal readonly fileSearch search=new fileSearch();
+internal class fileSearch:backgroundObject{
+internal readonly List<object>loadedFilesSyn=new List<object>();
+}
+internal class fileSearchMultithreaded:baseMultithreaded<fileSearch>{
+protected override void Renew(fileSearch next){
+}
+protected override void Release(){
+}
+protected override void Cleanup(){
+}
+protected override void Execute(){
 }
 }
 }}
