@@ -4,6 +4,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Threading;
 using Unity.Netcode;
 using UnityEngine;
 using static AKCondinoO.core;
@@ -15,6 +16,7 @@ readonly persistentDataMultithreaded[]persistentDataThreads=new persistentDataMu
 void OnDisable(){Debug.Log("spawner disabled");
 if(instantiation!=null){Debug.Log("spawner disconnected");
 StopCoroutine(instantiation);instantiation=null;
+List<ManualResetEvent>handles=new List<ManualResetEvent>();foreach(var sO in all){sO.OnExitSave(persistentDataThreads,handles);}foreach(var handle in handles)handle.WaitOne();
 persistentDataMultithreaded.Stop=true;for(int i=0;i<persistentDataThreads.Length;++i){persistentDataThreads[i]?.Wait();}persistentDataMultithreaded.Clear();
 ids.OnExitSave(idsThread);
 uniqueIdsMultithreaded.Stop=true;idsThread?.Wait();uniqueIdsMultithreaded.Clear();
@@ -49,6 +51,7 @@ if(!NetworkManager.Singleton.IsServer
  &&!NetworkManager.Singleton.IsClient){
 if(instantiation!=null){Debug.Log("spawner disconnected");
 StopCoroutine(instantiation);instantiation=null;
+List<ManualResetEvent>handles=new List<ManualResetEvent>();foreach(var sO in all){sO.OnExitSave(persistentDataThreads,handles);}foreach(var handle in handles)handle.WaitOne();
 persistentDataMultithreaded.Stop=true;for(int i=0;i<persistentDataThreads.Length;++i){persistentDataThreads[i]?.Wait();}persistentDataMultithreaded.Clear();
 ids.OnExitSave(idsThread);
 uniqueIdsMultithreaded.Stop=true;idsThread?.Wait();uniqueIdsMultithreaded.Clear();
