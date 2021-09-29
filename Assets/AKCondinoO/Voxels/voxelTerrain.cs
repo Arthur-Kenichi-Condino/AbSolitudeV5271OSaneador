@@ -93,9 +93,9 @@ voxelTerrainChunk cnk;all.Add(cnk=Instantiate(prefab));cnk.expropriated=pool.Add
 }
 marchingCubesMultithreaded.Stop=false;for(int i=0;i<marchingCubesThreads.Length;++i){marchingCubesThreads[i]=new marchingCubesMultithreaded();}
 }
-foreach(var movement in bounds){if(movement.Value==null)continue;var moved=movement.Value;Vector2Int pCoord_Pre=moved.Value.cCoord_Pre;Vector2Int pCoord=moved.Value.cCoord;
-for(Vector2Int eCoord=new Vector2Int(),cCoord1=new Vector2Int();eCoord.y<=expropriationDistance.y;eCoord.y++){for(cCoord1.y=-eCoord.y+pCoord_Pre.y;cCoord1.y<=eCoord.y+pCoord_Pre.y;cCoord1.y+=eCoord.y*2){
-for(           eCoord.x=0                                      ;eCoord.x<=expropriationDistance.x;eCoord.x++){for(cCoord1.x=-eCoord.x+pCoord_Pre.x;cCoord1.x<=eCoord.x+pCoord_Pre.x;cCoord1.x+=eCoord.x*2){
+foreach(var movement in bounds){if(movement.Value==null)continue;var moved=movement.Value;Vector2Int bCoord_Pre=moved.Value.cCoord_Pre;Vector2Int bCoord=moved.Value.cCoord;
+for(Vector2Int eCoord=new Vector2Int(),cCoord1=new Vector2Int();eCoord.y<=expropriationDistance.y;eCoord.y++){for(cCoord1.y=-eCoord.y+bCoord_Pre.y;cCoord1.y<=eCoord.y+bCoord_Pre.y;cCoord1.y+=eCoord.y*2){
+for(           eCoord.x=0                                      ;eCoord.x<=expropriationDistance.x;eCoord.x++){for(cCoord1.x=-eCoord.x+bCoord_Pre.x;cCoord1.x<=eCoord.x+bCoord_Pre.x;cCoord1.x+=eCoord.x*2){
 if(Math.Abs(cCoord1.x)>=MaxcCoordx||
    Math.Abs(cCoord1.y)>=MaxcCoordy){//Debug.Log("do not try to expropriate at out of world cCoord:.."+cCoord1);
 goto _skip;
@@ -112,8 +112,8 @@ if(bounds.All(b=>{return(Mathf.Abs(cCoord1.x-b.Key.cCoord.x)>instantiationDistan
 _skip:{}
 if(eCoord.x==0){break;}}}
 if(eCoord.y==0){break;}}}
-for(Vector2Int iCoord=new Vector2Int(),cCoord1=new Vector2Int();iCoord.y<=instantiationDistance.y;iCoord.y++){for(cCoord1.y=-iCoord.y+pCoord.y;cCoord1.y<=iCoord.y+pCoord.y;cCoord1.y+=iCoord.y*2){
-for(           iCoord.x=0                                      ;iCoord.x<=instantiationDistance.x;iCoord.x++){for(cCoord1.x=-iCoord.x+pCoord.x;cCoord1.x<=iCoord.x+pCoord.x;cCoord1.x+=iCoord.x*2){
+for(Vector2Int iCoord=new Vector2Int(),cCoord1=new Vector2Int();iCoord.y<=instantiationDistance.y;iCoord.y++){for(cCoord1.y=-iCoord.y+bCoord.y;cCoord1.y<=iCoord.y+bCoord.y;cCoord1.y+=iCoord.y*2){
+for(           iCoord.x=0                                      ;iCoord.x<=instantiationDistance.x;iCoord.x++){for(cCoord1.x=-iCoord.x+bCoord.x;cCoord1.x<=iCoord.x+bCoord.x;cCoord1.x+=iCoord.x*2){
 if(Math.Abs(cCoord1.x)>=MaxcCoordx||
    Math.Abs(cCoord1.y)>=MaxcCoordy){//Debug.Log("do not try to activate a chunk at out of world cCoord:.."+cCoord1);
 goto _skip;
@@ -130,9 +130,9 @@ if(iCoord.y==0){break;}}}
 }
 }
 internal static void OnPlayerDisconnected(UNetPrefab player){Debug.Log("OnPlayerDisconnected:");
-var pCoord=vecPosTocCoord(player.transform.position);
-for(Vector2Int iCoord=new Vector2Int(),cCoord1=new Vector2Int();iCoord.y<=instantiationDistance.y;iCoord.y++){for(cCoord1.y=-iCoord.y+pCoord.y;cCoord1.y<=iCoord.y+pCoord.y;cCoord1.y+=iCoord.y*2){
-for(           iCoord.x=0                                      ;iCoord.x<=instantiationDistance.x;iCoord.x++){for(cCoord1.x=-iCoord.x+pCoord.x;cCoord1.x<=iCoord.x+pCoord.x;cCoord1.x+=iCoord.x*2){
+var bCoord=vecPosTocCoord(player.transform.position);
+for(Vector2Int iCoord=new Vector2Int(),cCoord1=new Vector2Int();iCoord.y<=instantiationDistance.y;iCoord.y++){for(cCoord1.y=-iCoord.y+bCoord.y;cCoord1.y<=iCoord.y+bCoord.y;cCoord1.y+=iCoord.y*2){
+for(           iCoord.x=0                                      ;iCoord.x<=instantiationDistance.x;iCoord.x++){for(cCoord1.x=-iCoord.x+bCoord.x;cCoord1.x<=iCoord.x+bCoord.x;cCoord1.x+=iCoord.x*2){
 if(Math.Abs(cCoord1.x)>=MaxcCoordx||
    Math.Abs(cCoord1.y)>=MaxcCoordy){//Debug.Log("do not try to expropriate at out of world cCoord:.."+cCoord1);
 goto _skip;
