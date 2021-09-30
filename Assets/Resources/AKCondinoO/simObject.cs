@@ -8,7 +8,9 @@ using Unity.Netcode;
 using UnityEngine;
 using static AKCondinoO.core;
 using static AKCondinoO.simObject.persistentData;
+using static AKCondinoO.simObjectSpawner;
 using static AKCondinoO.Voxels.voxelTerrain;
+using static AKCondinoO.Voxels.voxelTerrainChunk;
 using static Utils;
 namespace AKCondinoO{internal class simObject:NetworkBehaviour{
 internal LinkedListNode<simObject>disabled;
@@ -21,15 +23,35 @@ fileIndex_v=value;
 }
 }(ulong id,int?cnkIdx)?fileIndex_v;
 internal void OnExitSave(persistentDataMultithreaded[]threads,List<ManualResetEvent>handles){//Debug.Log("OnExitSave()");
+DisableSim();
 if(threads[0]!=null&&threads[0].IsRunning()){Debug.Log("salvar antes de sair");
 if(id!=null){
 fileData.backgroundData.WaitOne();
-if(fileIndex!=null){
+if(unloading){
+unloading=false;
+if(fileData.unplace){
+OnUnplace(this);
+fileData.unplace=false;
+}
+OnDisabledSim(this);
+}else{
+if(loading){
+fileData.Getserializable();
+}else if(fileIndex!=null){
 fileData.fileIndex_bg=fileIndex.Value;
 fileIndex=null;
+loading=true;
 }
 fileData.Setserializable();
 persistentDataMultithreaded.Schedule(fileData);handles.Add(fileData.backgroundData);
+}
+}
+}
+}
+internal void OnSpawnerConnected(){
+if(id!=null){
+if(!loading&&fileIndex==null){
+EnableSim();
 }
 }
 }
@@ -49,7 +71,17 @@ foreach(var col in collider){col.enabled=false;}if(rigidbody){rigidbody.constrai
 foreach(var ren in renderer){ren.enabled=false;}
 }
 }
-bool loading;
+void EnableSim(){
+if(!isSimEnabled){Debug.Log("EnableSim");
+isSimEnabled=true;
+foreach(var col in collider){col.enabled=true;}if(rigidbody){rigidbody.constraints=RigidbodyConstraints.None;}
+foreach(var ren in renderer){ren.enabled=true;}
+}
+}
+bool loading;bool unloading;
+protected Vector3 previousPosition;
+[SerializeField]bool DEBUG_UNLOAD=false;
+[SerializeField]bool DEBUG_UNPLACE=false;
 void Update(){
 if(NetworkManager.Singleton.IsServer){
 if(id!=null){//Debug.Log("I exist");
@@ -58,6 +90,8 @@ if(fileData.backgroundData.WaitOne(0)){Debug.Log("got loaded data to set");
 loading=false;
 fileData.Getserializable();
 fileData.Filltransform(transform);
+previousPosition=transform.position;
+EnableSim();
 }
 }else if(fileIndex!=null){Debug.Log("I need to load file data");
 if(fileData.backgroundData.WaitOne(0)){Debug.Log("start loading");
@@ -67,8 +101,45 @@ loading=true;
 fileData.Setserializable();
 persistentDataMultithreaded.Schedule(fileData);
 }
+}else{
+if(unloading){Debug.Log("unloading: background saving in progress...");
+if(fileData.backgroundData.WaitOne(0)){Debug.Log("saved: now unload myself");
+unloading=false;
+if(fileData.unplace){
+OnUnplace(this);
+fileData.unplace=false;
 }
+OnDisabledSim(this);
+}
+}else if(DEBUG_UNPLACE){Debug.Log("DEBUG_UNPLACE");
+DEBUG_UNPLACE=false;
+DisableSim();
+if(fileData.backgroundData.WaitOne(0)){Debug.Log("I need to be unloaded because:DEBUG_UNPLACE");
+unloading=true;
+fileData.Setserializable();
+persistentDataMultithreaded.Schedule(fileData);
+}
+}else if(DEBUG_UNLOAD){Debug.Log("DEBUG_UNLOAD");
+DEBUG_UNLOAD=false;
+DisableSim();
+if(fileData.backgroundData.WaitOne(0)){Debug.Log("I need to be unloaded because:DEBUG_UNLOAD");
+unloading=true;
+fileData.Setserializable();
+persistentDataMultithreaded.Schedule(fileData);
+}
+}else if(transform.position.y<-Height/2f){
+if(previousPosition.y<-Height/2f){transform.position=previousPosition;}
+DisableSim();
+if(fileData.backgroundData.WaitOne(0)){Debug.Log("I need to be unloaded because:transform.position.y<-Height/2f:transform.position.y:"+transform.position.y);
+unloading=true;
+fileData.Setserializable();
+persistentDataMultithreaded.Schedule(fileData);
+}
+}else{
 fileData.Copytransform(transform);
+previousPosition=transform.position;
+}
+}
 }
 }
 }
@@ -90,7 +161,7 @@ transform.rotation=this.transform.rotation;
 transform.position=this.transform.position;
 transform.localScale=this.transform.scale;
 }
-internal Type type;internal(ulong id,int?cnkIdx)fileIndex_bg;
+internal Type type;internal(ulong id,int?cnkIdx)fileIndex_bg;internal bool unplace;
 internal readonly serializableTransform transform_bg=new serializableTransform();[Serializable]internal class serializableTransform{
 public SerializableQuaternion rotation{get;set;}
 public SerializableVector3    position{get;set;}

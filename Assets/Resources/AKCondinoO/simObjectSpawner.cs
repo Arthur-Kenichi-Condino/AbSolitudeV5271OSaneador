@@ -10,7 +10,7 @@ using UnityEngine;
 using static AKCondinoO.core;
 using static AKCondinoO.simObject;
 using static AKCondinoO.Voxels.voxelTerrain;
-namespace AKCondinoO{internal class simObjectSpawner:MonoBehaviour{
+namespace AKCondinoO{internal class simObjectSpawner:MonoBehaviour{internal static simObjectSpawner singleton;
 internal static readonly Dictionary<Type,GameObject>prefabs=new Dictionary<Type,GameObject>();internal static readonly Dictionary<(Type type,ulong id),simObject>active=new Dictionary<(Type,ulong),simObject>();internal static readonly List<simObject>all=new List<simObject>();internal static readonly Dictionary<Type,LinkedList<simObject>>pool=new Dictionary<Type,LinkedList<simObject>>();
 readonly persistentDataMultithreaded[]persistentDataThreads=new persistentDataMultithreaded[Environment.ProcessorCount];
 void OnDisable(){Debug.Log("spawner disabled");
@@ -27,7 +27,7 @@ void OnDestroy(){Debug.Log("on destroy sim object spawner");
 ids.backgroundData.Dispose();
 ids.foregroundData.Dispose();
 }
-void Awake(){
+void Awake(){singleton=this;
 foreach(var o in Resources.LoadAll("AKCondinoO/",typeof(GameObject))){var gO=(GameObject)o;var sO=gO.GetComponent<simObject>();if(sO==null)continue;
 Type t=sO.GetType();
 prefabs[t]=gO;pool[t]=new LinkedList<simObject>();
@@ -57,6 +57,13 @@ List<ManualResetEvent>handles=new List<ManualResetEvent>();foreach(var sO in all
 persistentDataMultithreaded.Stop=true;for(int i=0;i<persistentDataThreads.Length;++i){persistentDataThreads[i]?.Wait();}persistentDataMultithreaded.Clear();
 ids.OnExitSave(idsThread);
 uniqueIdsMultithreaded.Stop=true;idsThread?.Wait();uniqueIdsMultithreaded.Clear();
+foreach(var sO in all){
+sO.fileData.backgroundData.Dispose();
+sO.fileData.foregroundData.Dispose();
+DestroyImmediate(sO);
+}all.Clear();
+active.Clear();
+foreach(var p in pool)p.Value.Clear();
 }
 }
 if(NetworkManager.Singleton.IsServer){
@@ -66,6 +73,9 @@ ids.Init();
 instantiation=StartCoroutine(Instantiation());
 fileSearchMultithreaded.Stop=false;filesThread=new fileSearchMultithreaded();
 persistentDataMultithreaded.Stop=false;for(int i=0;i<persistentDataThreads.Length;++i){persistentDataThreads[i]=new persistentDataMultithreaded();}
+foreach(var sO in all){
+sO.OnSpawnerConnected();
+}
 }
 //Debug.Log("instantiating:"+instantiating);
 if(!instantiating){
@@ -94,6 +104,15 @@ Place(Vector3.zero,Vector3.zero,Vector3.one,fileIndex.type,(fileIndex.id,fileInd
 }
 instantiating=false;
 goto Loop;}
+internal static void OnDisabledSim(simObject sO){Debug.Log("OnDisabledSim");
+Type type=sO.GetType();
+singleton.files.unloadedFilesSyn.Add(sO.fileData.syn);
+active.Remove((type,sO.id.Value));
+sO.id=null;
+sO.disabled=pool[type].AddLast(sO);
+}
+internal static void OnUnplace(simObject sO){Debug.Log("OnUnplace");
+}
 simObject Place(Vector3 position,Vector3 rotation,Vector3 scale,Type type,(ulong id,int?cnkIdx)?fromFoundFile=null){simObject result;
 if(pool[type].Count<=0){
 simObject sO;all.Add(sO=Instantiate(prefabs[type]).GetComponent<simObject>());sO.disabled=pool[sO.GetType()].AddLast(sO);
@@ -187,13 +206,18 @@ jsonSerializer.Serialize(json,current.deadIds,typeof(Dictionary<Type,List<ulong>
 }
 internal readonly fileSearch files=new fileSearch();
 internal class fileSearch:backgroundObject{
-internal readonly List<object>loadedFilesSyn=new List<object>();
+internal readonly List<object>unloadedFilesSyn=new List<object>();
+  internal readonly List<object>loadedFilesSyn=new List<object>();
 internal readonly HashSet<Vector2Int>searchWherabouts=new HashSet<Vector2Int>();
 internal void Inbounds(Dictionary<UNetPrefab,(Vector2Int cCoord,Vector2Int cCoord_Pre)?>bounds){
 searchWherabouts.Clear();
 foreach(var b in bounds){
 searchWherabouts.Add(b.Key.cCoord);
 }
+foreach(var syn in unloadedFilesSyn){
+loadedFilesSyn.Remove(syn);
+}
+unloadedFilesSyn.Clear();
 }
 internal readonly HashSet<(Type type,ulong id,int cnkIdx)>foundFileIndexes=new HashSet<(Type,ulong,int)>();
 }
@@ -206,6 +230,7 @@ protected override void Release(){
 protected override void Cleanup(){
 }
 protected override void Execute(){Debug.Log("Execute()");
+foreach(var syn in current.loadedFilesSyn)Monitor.Enter(syn);try{
 current.foundFileIndexes.Clear();
 Debug.Log("current.searchWherabouts.Count:"+current.searchWherabouts.Count);
 foreach(Vector2Int bCoord in current.searchWherabouts){//Debug.Log("bCoord:"+bCoord);
@@ -235,6 +260,7 @@ if(iCoord.x==0){break;}}}
 if(iCoord.y==0){break;}}}
 }
 Debug.Log("current.foundFileIndexes.Count:"+current.foundFileIndexes.Count);
+}catch{throw;}finally{foreach(var syn in current.loadedFilesSyn)Monitor.Exit(syn);}
 }
 }
 }}
