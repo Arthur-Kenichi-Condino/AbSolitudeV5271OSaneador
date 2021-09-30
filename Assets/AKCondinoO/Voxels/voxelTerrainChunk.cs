@@ -31,11 +31,15 @@ new VertexAttributeDescriptor(VertexAttribute.TexCoord1,VertexAttributeFormat.Fl
 new VertexAttributeDescriptor(VertexAttribute.TexCoord2,VertexAttributeFormat.Float32,2),
 new VertexAttributeDescriptor(VertexAttribute.TexCoord3,VertexAttributeFormat.Float32,2),
 };
+internal new MeshRenderer renderer;
+internal new MeshCollider collider;
 void Awake(){
 //Debug.Log("ready components",this);
 network=GetComponent<NetworkObject>();
 mesh=new Mesh(){bounds=localBounds=new Bounds(Vector3.zero,new Vector3(Width,Height,Depth))};GetComponent<MeshFilter>().mesh=mesh;
 bakeJob=new BakerJob(){meshId=mesh.GetInstanceID(),};
+renderer=GetComponent<MeshRenderer>();
+collider=GetComponent<MeshCollider>();
 Prepare();
 }
 internal bool isPrepared;
@@ -64,6 +68,10 @@ if(bakingHandle.IsCompleted){bakingHandle.Complete();//Debug.Log("bakingHandle.I
 baking=false;
 if(!cnkIdxChanged){//Debug.Log("mesh is built now");
 meshDirty=false;
+renderer.enabled=true;
+collider.enabled=true;
+collider.sharedMesh=null;
+collider.sharedMesh=mesh;
 }
 }
 }else if(marchingCubesRunning){

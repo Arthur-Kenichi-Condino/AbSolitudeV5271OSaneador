@@ -65,6 +65,7 @@ DisableSim();
 }
 internal bool isSimEnabled=true;
 void DisableSim(){
+if(this==null||gameObject==null){Debug.Log("gameObject already destroyed can't have DisableSim called");return;}
 if(isSimEnabled){Debug.Log("DisableSim");
 isSimEnabled=false;
 foreach(var col in collider){col.enabled=false;}if(rigidbody){rigidbody.constraints=RigidbodyConstraints.FreezeAll;}
@@ -133,6 +134,7 @@ if(previousPosition.y<-Height/2f){transform.position=previousPosition;}
 DisableSim();
 if(fileData.backgroundData.WaitOne(0)){Debug.Log("I need to be unloaded because:transform.position.y<-Height/2f:transform.position.y:"+transform.position.y);
 unloading=true;
+fileData.unplace=true;
 fileData.Setserializable();
 persistentDataMultithreaded.Schedule(fileData);
 }
