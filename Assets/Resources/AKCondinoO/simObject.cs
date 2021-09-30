@@ -30,8 +30,8 @@ fileData.backgroundData.WaitOne();
 if(unloading){
 unloading=false;
 if(fileData.unplace){
-OnUnplace(this);
 fileData.unplace=false;
+OnUnplace(this);
 }
 OnDisabledSim(this);
 }else{
@@ -106,8 +106,8 @@ if(unloading){Debug.Log("unloading: background saving in progress...");
 if(fileData.backgroundData.WaitOne(0)){Debug.Log("saved: now unload myself");
 unloading=false;
 if(fileData.unplace){
-OnUnplace(this);
 fileData.unplace=false;
+OnUnplace(this);
 }
 OnDisabledSim(this);
 }
@@ -116,6 +116,7 @@ DEBUG_UNPLACE=false;
 DisableSim();
 if(fileData.backgroundData.WaitOne(0)){Debug.Log("I need to be unloaded because:DEBUG_UNPLACE");
 unloading=true;
+fileData.unplace=true;
 fileData.Setserializable();
 persistentDataMultithreaded.Schedule(fileData);
 }
@@ -183,7 +184,7 @@ transform.scale=transform_bg.scale;
 }
 internal class persistentDataMultithreaded:baseMultithreaded<persistentData>{
 readonly JsonSerializer jsonSerializer=new JsonSerializer();
-(ulong id,int?cnkIdx)fileIndex{get{return current.fileIndex_bg;}set{current.fileIndex_bg=value;}}
+(ulong id,int?cnkIdx)fileIndex{get{return current.fileIndex_bg;}set{current.fileIndex_bg=value;}}bool unplace{get{return current.unplace;}}
 serializableTransform transform{get{return current.transform_bg;}}
 serializableSpecsData specsData{get{return current.specsData_bg;}}
 protected override void Renew(persistentData next){
@@ -235,13 +236,21 @@ transform.scale=load.scale;
 }}
 }
 }
+if(unplace){
+specsData.transformFile="";
+}else{
 using(var file=new FileStream(transformFile,FileMode.OpenOrCreate,FileAccess.ReadWrite,FileShare.None)){
+file.SetLength(0);
+file.Flush(true);
 using(var writer=new StreamWriter(file)){using(var json=new JsonTextWriter(writer)){
 jsonSerializer.Serialize(json,transform,typeof(serializableTransform));
 }}
 }
 specsData.transformFile=transformFile;
+}
 using(var file=new FileStream(specsDataFile,FileMode.OpenOrCreate,FileAccess.ReadWrite,FileShare.None)){
+file.SetLength(0);
+file.Flush(true);
 using(var writer=new StreamWriter(file)){using(var json=new JsonTextWriter(writer)){
 jsonSerializer.Serialize(json,specsData,typeof(serializableSpecsData));
 }}

@@ -112,6 +112,7 @@ sO.id=null;
 sO.disabled=pool[type].AddLast(sO);
 }
 internal static void OnUnplace(simObject sO){Debug.Log("OnUnplace");
+singleton.ids.Recycle(sO.id.Value,forType:sO.GetType());Debug.Log("id "+sO.id.Value+" recycled");
 }
 simObject Place(Vector3 position,Vector3 rotation,Vector3 scale,Type type,(ulong id,int?cnkIdx)?fromFoundFile=null){simObject result;
 if(pool[type].Count<=0){
@@ -192,11 +193,15 @@ current.deadIds=new Dictionary<Type,List<ulong>>();
 }
 }else{Debug.Log("save used ids");
 using(var file=new FileStream(usedIdsFile,FileMode.OpenOrCreate,FileAccess.ReadWrite,FileShare.None)){
+file.SetLength(0);
+file.Flush(true);
 using(var writer=new StreamWriter(file)){using(var json=new JsonTextWriter(writer)){
 jsonSerializer.Serialize(json,current.usedIds,typeof(Dictionary<Type,ulong>));
 }}
 }
 using(var file=new FileStream(deadIdsFile,FileMode.OpenOrCreate,FileAccess.ReadWrite,FileShare.None)){
+file.SetLength(0);
+file.Flush(true);
 using(var writer=new StreamWriter(file)){using(var json=new JsonTextWriter(writer)){
 jsonSerializer.Serialize(json,current.deadIds,typeof(Dictionary<Type,List<ulong>>));
 }}
