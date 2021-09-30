@@ -23,7 +23,11 @@ fileIndex_v=value;
 }
 }(ulong id,int?cnkIdx)?fileIndex_v;
 internal void OnExitSave(persistentDataMultithreaded[]threads,List<ManualResetEvent>handles){//Debug.Log("OnExitSave()");
+if(this!=null&&gameObject!=null){Debug.Log("OnExitSave gameObject not destroyed yet, call DisableSim");
 DisableSim();
+}else{
+Debug.Log("OnExitSave gameObject already destroyed");
+}
 if(threads[0]!=null&&threads[0].IsRunning()){Debug.Log("salvar antes de sair");
 if(id!=null){
 fileData.backgroundData.WaitOne();
@@ -65,7 +69,6 @@ DisableSim();
 }
 internal bool isSimEnabled=true;
 void DisableSim(){
-if(this==null||gameObject==null){Debug.Log("gameObject already destroyed can't have DisableSim called");return;}
 if(isSimEnabled){Debug.Log("DisableSim");
 isSimEnabled=false;
 foreach(var col in collider){col.enabled=false;}if(rigidbody){rigidbody.constraints=RigidbodyConstraints.FreezeAll;}

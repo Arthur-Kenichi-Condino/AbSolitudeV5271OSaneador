@@ -24,6 +24,12 @@ uniqueIdsMultithreaded.Stop=true;idsThread?.Wait();uniqueIdsMultithreaded.Clear(
 }
 }
 void OnDestroy(){Debug.Log("on destroy sim object spawner");
+foreach(var sO in all){Debug.Log("destroy sim object");
+sO.fileData.backgroundData.Dispose();
+sO.fileData.foregroundData.Dispose();
+}
+files.backgroundData.Dispose();
+files.foregroundData.Dispose();
 ids.backgroundData.Dispose();
 ids.foregroundData.Dispose();
 }
