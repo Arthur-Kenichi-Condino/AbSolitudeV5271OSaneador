@@ -4,6 +4,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Threading;
 using Unity.Netcode;
 using UnityEngine;
@@ -84,7 +85,9 @@ foreach(var ren in renderer){ren.enabled=true;}
 bool loading;bool unloading;
 internal Vector2Int cCoord,cCoord_Pre;
        internal int cnkIdx;
-protected Vector3 previousPosition;
+protected Quaternion previousRotation;
+   protected Vector3 previousPosition;
+   protected Vector3 previousScale;
 [SerializeField]bool DEBUG_UNLOAD=false;
 [SerializeField]bool DEBUG_UNPLACE=false;
 void Update(){
@@ -144,7 +147,7 @@ fileData.unplace=true;
 fileData.Setserializable();
 persistentDataMultithreaded.Schedule(fileData);
 }
-}else if(!voxelTerrain.active.TryGetValue(cnkIdx,out voxelTerrainChunk cnk)||cnk.meshDirty){
+}else if(boundsVertices.Any(v=>{Vector2Int cCoord=vecPosTocCoord(v);int cnkIdx=GetcnkIdx(cCoord.x,cCoord.y);return(!voxelTerrain.active.TryGetValue(cnkIdx,out voxelTerrainChunk cnk)||cnk.meshDirty);})){
 transform.position=previousPosition;
 DisableSim();
 if(fileData.backgroundData.WaitOne(0)){Debug.Log("I need to be unloaded because:cnk==null or cnk.meshDirty");
@@ -154,7 +157,9 @@ persistentDataMultithreaded.Schedule(fileData);
 }
 }else if(instantiation!=null){
 EnableSim();
-if(transform.position!=previousPosition){
+if(transform.rotation!=previousRotation
+ ||transform.position!=previousPosition
+ ||transform.localScale!=previousScale){
 transformBoundsVertices();
 cCoord_Pre=cCoord;
 if(cCoord!=(cCoord=vecPosTocCoord(transform.position))){Debug.Log("I moved to cCoord:"+cCoord);
@@ -162,7 +167,9 @@ cnkIdx=GetcnkIdx(cCoord.x,cCoord.y);
 }
 }
 fileData.Copytransform(transform);
+previousRotation=transform.rotation;
 previousPosition=transform.position;
+previousScale=transform.localScale;
 }
 }
 }
