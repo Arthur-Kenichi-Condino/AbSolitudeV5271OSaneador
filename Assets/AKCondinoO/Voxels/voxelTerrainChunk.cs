@@ -67,11 +67,11 @@ if(baking){
 if(bakingHandle.IsCompleted){bakingHandle.Complete();//Debug.Log("bakingHandle.IsCompleted");
 baking=false;
 if(!cnkIdxChanged){//Debug.Log("mesh is built now");
-meshDirty=false;
 renderer.enabled=true;
 collider.enabled=true;
 collider.sharedMesh=null;
 collider.sharedMesh=mesh;
+meshDirty=false;
 }
 }
 }else if(marchingCubesRunning){

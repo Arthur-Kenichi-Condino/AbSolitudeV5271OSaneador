@@ -19,12 +19,13 @@ if(NetworkManager.Singleton.IsServer){
 bounds[this]=null;
 pos=transform.position;
 if(firstLoop||pos!=pos_Pre){
-cCoord=vecPosTocCoord(pos);
-if(firstLoop||cCoord!=cCoord_Pre){
+cCoord_Pre=cCoord;
+if(firstLoop|cCoord!=(cCoord=vecPosTocCoord(pos))){
 cnkRgn=cCoordTocnkRgn(cCoord);
 localBounds.center=new Vector3(cnkRgn.x,0,cnkRgn.y);//Debug.Log("new player bounds center at "+localBounds.center,this);
+if(firstLoop){cCoord_Pre=cCoord;}
 bounds[this]=(cCoord,cCoord_Pre);
-cCoord_Pre=cCoord;}
+}
 pos_Pre=pos;}
 firstLoop=false;
 }

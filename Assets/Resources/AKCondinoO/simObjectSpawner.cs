@@ -79,9 +79,6 @@ ids.Init();
 instantiation=StartCoroutine(Instantiation());
 fileSearchMultithreaded.Stop=false;filesThread=new fileSearchMultithreaded();
 persistentDataMultithreaded.Stop=false;for(int i=0;i<persistentDataThreads.Length;++i){persistentDataThreads[i]=new persistentDataMultithreaded();}
-foreach(var sO in all){
-sO.OnSpawnerConnected();
-}
 }
 //Debug.Log("instantiating:"+instantiating);
 if(!instantiating){

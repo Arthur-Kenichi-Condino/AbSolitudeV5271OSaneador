@@ -1,3 +1,4 @@
+using AKCondinoO.Voxels;
 using Newtonsoft.Json;
 using System;
 using System.Collections;
@@ -52,13 +53,6 @@ persistentDataMultithreaded.Schedule(fileData);handles.Add(fileData.backgroundDa
 }
 }
 }
-internal void OnSpawnerConnected(){
-if(id!=null){
-if(!loading&&fileIndex==null){
-EnableSim();
-}
-}
-}
 internal new Collider[]collider;internal new Rigidbody rigidbody;
 internal new Renderer[]renderer;
 void Awake(){Debug.Log("simObject Awake");
@@ -83,6 +77,8 @@ foreach(var ren in renderer){ren.enabled=true;}
 }
 }
 bool loading;bool unloading;
+internal Vector2Int cCoord,cCoord_Pre;
+       internal int cnkIdx;
 protected Vector3 previousPosition;
 [SerializeField]bool DEBUG_UNLOAD=false;
 [SerializeField]bool DEBUG_UNPLACE=false;
@@ -95,7 +91,8 @@ loading=false;
 fileData.Getserializable();
 fileData.Filltransform(transform);
 previousPosition=transform.position;
-EnableSim();
+cCoord=cCoord_Pre=vecPosTocCoord(transform.position);
+cnkIdx=GetcnkIdx(cCoord.x,cCoord.y);
 }
 }else if(fileIndex!=null){Debug.Log("I need to load file data");
 if(fileData.backgroundData.WaitOne(0)){Debug.Log("start loading");
@@ -141,7 +138,22 @@ fileData.unplace=true;
 fileData.Setserializable();
 persistentDataMultithreaded.Schedule(fileData);
 }
-}else{
+}else if(!voxelTerrain.active.TryGetValue(cnkIdx,out voxelTerrainChunk cnk)||cnk.meshDirty){
+transform.position=previousPosition;
+DisableSim();
+if(fileData.backgroundData.WaitOne(0)){Debug.Log("I need to be unloaded because:cnk==null or cnk.meshDirty");
+unloading=true;
+fileData.Setserializable();
+persistentDataMultithreaded.Schedule(fileData);
+}
+}else if(instantiation!=null){
+EnableSim();
+if(transform.position!=previousPosition){
+cCoord_Pre=cCoord;
+if(cCoord!=(cCoord=vecPosTocCoord(transform.position))){Debug.Log("I moved to cCoord:"+cCoord);
+cnkIdx=GetcnkIdx(cCoord.x,cCoord.y);
+}
+}
 fileData.Copytransform(transform);
 previousPosition=transform.position;
 }
