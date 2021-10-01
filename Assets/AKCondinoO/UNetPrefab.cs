@@ -8,9 +8,9 @@ void OnDisable(){
 bounds.Remove(this);
 OnPlayerDisconnected(this);
 }
-internal Bounds localBounds;
+internal Bounds worldBounds;
 void Awake(){
-localBounds=new Bounds(Vector3.zero,new Vector3((instantiationDistance.x*2+1)*Width,Height,(instantiationDistance.y*2+1)*Depth));
+worldBounds=new Bounds(Vector3.zero,new Vector3((instantiationDistance.x*2+1)*Width,Height,(instantiationDistance.y*2+1)*Depth));
 }
 bool firstLoop=true;
 Vector3 pos,pos_Pre;internal Vector2Int cCoord,cCoord_Pre;Vector2Int cnkRgn;
@@ -22,7 +22,7 @@ if(firstLoop||pos!=pos_Pre){
 cCoord_Pre=cCoord;
 if(firstLoop|cCoord!=(cCoord=vecPosTocCoord(pos))){
 cnkRgn=cCoordTocnkRgn(cCoord);
-localBounds.center=new Vector3(cnkRgn.x,0,cnkRgn.y);//Debug.Log("new player bounds center at "+localBounds.center,this);
+worldBounds.center=new Vector3(cnkRgn.x,0,cnkRgn.y);//Debug.Log("new player bounds center at "+worldBounds.center,this);
 if(firstLoop){cCoord_Pre=cCoord;}
 bounds[this]=(cCoord,cCoord_Pre);
 }
@@ -32,7 +32,7 @@ firstLoop=false;
 }
 #if UNITY_EDITOR
 void OnDrawGizmos(){
-DrawBounds(localBounds,Color.blue);
+DrawBounds(worldBounds,Color.blue);
 }
 #endif
 }}

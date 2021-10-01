@@ -20,7 +20,7 @@ internal const ushort FlattenOffset=(Width*Depth);
 internal const int VoxelsPerChunk=(FlattenOffset*Height);
 internal LinkedListNode<voxelTerrainChunk>expropriated;
 internal NetworkObject network;
-internal Bounds localBounds;
+internal Bounds worldBounds;
   internal Mesh mesh;
 MeshUpdateFlags meshFlags=MeshUpdateFlags.DontValidateIndices|MeshUpdateFlags.DontNotifyMeshUsers|MeshUpdateFlags.DontRecalculateBounds;static readonly VertexAttributeDescriptor[]layout=new[]{
 new VertexAttributeDescriptor(VertexAttribute.Position ,VertexAttributeFormat.Float32,3),
@@ -36,7 +36,7 @@ internal new MeshCollider collider;
 void Awake(){
 //Debug.Log("ready components",this);
 network=GetComponent<NetworkObject>();
-mesh=new Mesh(){bounds=localBounds=new Bounds(Vector3.zero,new Vector3(Width,Height,Depth))};GetComponent<MeshFilter>().mesh=mesh;
+mesh=new Mesh(){bounds=worldBounds=new Bounds(Vector3.zero,new Vector3(Width,Height,Depth))};GetComponent<MeshFilter>().mesh=mesh;
 bakeJob=new BakerJob(){meshId=mesh.GetInstanceID(),};
 renderer=GetComponent<MeshRenderer>();
 collider=GetComponent<MeshCollider>();
@@ -98,7 +98,7 @@ Vector2Int cnkRgn;
 internal int?cnkIdx=null;bool cnkIdxChanged;
 internal void OncCoordChanged(Vector2Int cCoord1,int cnkIdx1){
 cCoord=cCoord1;
-cnkRgn=cCoordTocnkRgn(cCoord);localBounds.center=transform.position=new Vector3(cnkRgn.x,0,cnkRgn.y);
+cnkRgn=cCoordTocnkRgn(cCoord);worldBounds.center=transform.position=new Vector3(cnkRgn.x,0,cnkRgn.y);
 cnkIdx=cnkIdx1;cnkIdxChanged=true;
 meshDirty=true;
 }
@@ -521,7 +521,7 @@ return -1;}
 }
 #if UNITY_EDITOR
 void OnDrawGizmos(){
-//DrawBounds(localBounds,Color.white);
+//DrawBounds(worldBounds,Color.white);
 }
 #endif
 }}

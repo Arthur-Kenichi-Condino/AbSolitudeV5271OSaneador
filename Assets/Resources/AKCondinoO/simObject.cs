@@ -53,12 +53,17 @@ persistentDataMultithreaded.Schedule(fileData);handles.Add(fileData.backgroundDa
 }
 }
 }
+internal Bounds localBounds;readonly Vector3[]boundsVertices=new Vector3[8];
 internal new Collider[]collider;internal new Rigidbody rigidbody;
 internal new Renderer[]renderer;
 void Awake(){Debug.Log("simObject Awake");
 fileData.type=GetType();
 collider=GetComponentsInChildren<Collider>();rigidbody=GetComponent<Rigidbody>();
 renderer=GetComponentsInChildren<Renderer>();
+localBounds=new Bounds(Vector3.zero,Vector3.zero);
+foreach(var col in collider){
+localBounds.Encapsulate(col.bounds);
+}
 DisableSim();
 }
 internal bool isSimEnabled=true;
@@ -90,6 +95,7 @@ if(fileData.backgroundData.WaitOne(0)){Debug.Log("got loaded data to set");
 loading=false;
 fileData.Getserializable();
 fileData.Filltransform(transform);
+transformBoundsVertices();
 previousPosition=transform.position;
 cCoord=cCoord_Pre=vecPosTocCoord(transform.position);
 cnkIdx=GetcnkIdx(cCoord.x,cCoord.y);
@@ -149,6 +155,7 @@ persistentDataMultithreaded.Schedule(fileData);
 }else if(instantiation!=null){
 EnableSim();
 if(transform.position!=previousPosition){
+transformBoundsVertices();
 cCoord_Pre=cCoord;
 if(cCoord!=(cCoord=vecPosTocCoord(transform.position))){Debug.Log("I moved to cCoord:"+cCoord);
 cnkIdx=GetcnkIdx(cCoord.x,cCoord.y);
@@ -159,6 +166,16 @@ previousPosition=transform.position;
 }
 }
 }
+}
+void transformBoundsVertices(){
+boundsVertices[0]=transform.TransformPoint(localBounds.min.x,localBounds.min.y,localBounds.min.z);
+boundsVertices[1]=transform.TransformPoint(localBounds.max.x,localBounds.min.y,localBounds.min.z);
+boundsVertices[2]=transform.TransformPoint(localBounds.max.x,localBounds.min.y,localBounds.max.z);
+boundsVertices[3]=transform.TransformPoint(localBounds.min.x,localBounds.min.y,localBounds.max.z);
+boundsVertices[4]=transform.TransformPoint(localBounds.min.x,localBounds.max.y,localBounds.min.z);
+boundsVertices[5]=transform.TransformPoint(localBounds.max.x,localBounds.max.y,localBounds.min.z);
+boundsVertices[6]=transform.TransformPoint(localBounds.max.x,localBounds.max.y,localBounds.max.z);
+boundsVertices[7]=transform.TransformPoint(localBounds.min.x,localBounds.max.y,localBounds.max.z);
 }
 }
 internal readonly persistentData fileData=new persistentData();
@@ -276,4 +293,21 @@ var f=fileIndex;f.cnkIdx=null;fileIndex=f;Debug.Log("set persistent data to be s
 }
 }
 }
+#if UNITY_EDITOR
+void OnDrawGizmos(){
+//DrawBounds(localBounds,Color.yellow);
+Debug.DrawLine(boundsVertices[0],boundsVertices[1],Color.white);
+Debug.DrawLine(boundsVertices[1],boundsVertices[2],Color.white);
+Debug.DrawLine(boundsVertices[2],boundsVertices[3],Color.white);
+Debug.DrawLine(boundsVertices[3],boundsVertices[0],Color.white);
+Debug.DrawLine(boundsVertices[4],boundsVertices[5],Color.white);
+Debug.DrawLine(boundsVertices[5],boundsVertices[6],Color.white);
+Debug.DrawLine(boundsVertices[6],boundsVertices[7],Color.white);
+Debug.DrawLine(boundsVertices[7],boundsVertices[4],Color.white);
+Debug.DrawLine(boundsVertices[0],boundsVertices[4],Color.white);// sides
+Debug.DrawLine(boundsVertices[1],boundsVertices[5],Color.white);
+Debug.DrawLine(boundsVertices[2],boundsVertices[6],Color.white);
+Debug.DrawLine(boundsVertices[3],boundsVertices[7],Color.white);
+}
+#endif
 }}
