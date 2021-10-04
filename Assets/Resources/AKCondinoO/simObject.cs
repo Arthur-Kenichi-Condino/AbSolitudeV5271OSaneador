@@ -54,7 +54,7 @@ persistentDataMultithreaded.Schedule(fileData);handles.Add(fileData.backgroundDa
 }
 }
 }
-internal Bounds localBounds;readonly Vector3[]boundsVertices=new Vector3[8];
+internal Bounds localBounds;readonly Vector3[]boundsVertices=new Vector3[8];bool boundsVerticesTransformed;
 internal new Collider[]collider;internal new Rigidbody rigidbody;
 internal new Renderer[]renderer;
 void Awake(){Debug.Log("simObject Awake");
@@ -147,7 +147,7 @@ fileData.unplace=true;
 fileData.Setserializable();
 persistentDataMultithreaded.Schedule(fileData);
 }
-}else if(boundsVertices.Any(v=>{Vector2Int cCoord=vecPosTocCoord(v);int cnkIdx=GetcnkIdx(cCoord.x,cCoord.y);return(!voxelTerrain.active.TryGetValue(cnkIdx,out voxelTerrainChunk cnk)||cnk.meshDirty);})){
+}else if(boundsVerticesTransformed&&boundsVertices.Any(v=>{Vector2Int cCoord=vecPosTocCoord(v);int cnkIdx=GetcnkIdx(cCoord.x,cCoord.y);return(!voxelTerrain.active.TryGetValue(cnkIdx,out voxelTerrainChunk cnk)||cnk.meshDirty);})){
 transform.position=previousPosition;
 DisableSim();
 if(fileData.backgroundData.WaitOne(0)){Debug.Log("I need to be unloaded because:cnk==null or cnk.meshDirty");
@@ -157,6 +157,7 @@ persistentDataMultithreaded.Schedule(fileData);
 }
 }else if(instantiation!=null){
 EnableSim();
+boundsVerticesTransformed=false;
 if(transform.rotation!=previousRotation
  ||transform.position!=previousPosition
  ||transform.localScale!=previousScale){
@@ -183,6 +184,7 @@ boundsVertices[4]=transform.TransformPoint(localBounds.min.x,localBounds.max.y,l
 boundsVertices[5]=transform.TransformPoint(localBounds.max.x,localBounds.max.y,localBounds.min.z);
 boundsVertices[6]=transform.TransformPoint(localBounds.max.x,localBounds.max.y,localBounds.max.z);
 boundsVertices[7]=transform.TransformPoint(localBounds.min.x,localBounds.max.y,localBounds.max.z);
+boundsVerticesTransformed=true;
 }
 }
 internal readonly persistentData fileData=new persistentData();

@@ -105,6 +105,7 @@ meshDirty=true;
 bool baking;JobHandle bakingHandle;BakerJob bakeJob;struct BakerJob:IJob{public int meshId;public void Execute(){Physics.BakeMesh(meshId,false);}}
 internal readonly marchingCubes mC=new marchingCubes();
 internal class marchingCubes:backgroundObject{
+internal readonly object syn=new object();
 internal NativeList<vertex>TempVer;[System.Runtime.InteropServices.StructLayout(System.Runtime.InteropServices.LayoutKind.Sequential)]internal struct vertex{
 internal Vector3 pos;
 internal Vector3 normal;

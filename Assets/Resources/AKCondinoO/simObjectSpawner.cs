@@ -16,7 +16,7 @@ readonly persistentDataMultithreaded[]persistentDataThreads=new persistentDataMu
 void OnDisable(){Debug.Log("spawner disabled");
 if(instantiation!=null){Debug.Log("spawner disconnected");
 StopCoroutine(instantiation);instantiation=null;
-fileSearchMultithreaded.Stop=true;filesThread?.Wait();fileSearchMultithreaded.Clear();
+fileSearchMultithreaded.Stop=true;searchingThread?.Wait();fileSearchMultithreaded.Clear();
 List<ManualResetEvent>handles=new List<ManualResetEvent>();foreach(var sO in all){sO.OnExitSave(persistentDataThreads,handles);}foreach(var handle in handles)handle.WaitOne();
 persistentDataMultithreaded.Stop=true;for(int i=0;i<persistentDataThreads.Length;++i){persistentDataThreads[i]?.Wait();}persistentDataMultithreaded.Clear();
 ids.OnExitSave(idsThread);
@@ -28,8 +28,8 @@ foreach(var sO in all){Debug.Log("destroy sim object");
 sO.fileData.backgroundData.Dispose();
 sO.fileData.foregroundData.Dispose();
 }
-files.backgroundData.Dispose();
-files.foregroundData.Dispose();
+searching.backgroundData.Dispose();
+searching.foregroundData.Dispose();
 ids.backgroundData.Dispose();
 ids.foregroundData.Dispose();
 }
@@ -38,7 +38,7 @@ foreach(var o in Resources.LoadAll("AKCondinoO/",typeof(GameObject))){var gO=(Ga
 Type t=sO.GetType();
 prefabs[t]=gO;pool[t]=new LinkedList<simObject>();
 }
-waitUntilInstantiationRequested=new WaitUntil(()=>instantiating);waitUntilIdsSaved=new WaitUntil(()=>ids.backgroundData.WaitOne(0));waitUntilFilesSearched=new WaitUntil(()=>files.backgroundData.WaitOne(0));
+waitUntilInstantiationRequested=new WaitUntil(()=>instantiating);waitUntilIdsSaved=new WaitUntil(()=>ids.backgroundData.WaitOne(0));waitUntilFilesSearched=new WaitUntil(()=>searching.backgroundData.WaitOne(0));
 }
 [SerializeField]Vector3   DEBUG_CREATE_SIM_OBJECT_ROTATION;
 [SerializeField]Vector3   DEBUG_CREATE_SIM_OBJECT_POSITION;
@@ -58,7 +58,7 @@ if(!NetworkManager.Singleton.IsServer
  &&!NetworkManager.Singleton.IsClient){
 if(instantiation!=null){Debug.Log("spawner disconnected");
 StopCoroutine(instantiation);instantiation=null;
-fileSearchMultithreaded.Stop=true;filesThread?.Wait();fileSearchMultithreaded.Clear();
+fileSearchMultithreaded.Stop=true;searchingThread?.Wait();fileSearchMultithreaded.Clear();
 List<ManualResetEvent>handles=new List<ManualResetEvent>();foreach(var sO in all){sO.OnExitSave(persistentDataThreads,handles);}foreach(var handle in handles)handle.WaitOne();
 persistentDataMultithreaded.Stop=true;for(int i=0;i<persistentDataThreads.Length;++i){persistentDataThreads[i]?.Wait();}persistentDataMultithreaded.Clear();
 ids.OnExitSave(idsThread);
@@ -77,15 +77,15 @@ if(instantiation==null&&!string.IsNullOrEmpty(saveName)){Debug.Log("spawner conn
 uniqueIdsMultithreaded.Stop=false;idsThread=new uniqueIdsMultithreaded();
 ids.Init();
 instantiation=StartCoroutine(Instantiation());
-fileSearchMultithreaded.Stop=false;filesThread=new fileSearchMultithreaded();
+fileSearchMultithreaded.Stop=false;searchingThread=new fileSearchMultithreaded();
 persistentDataMultithreaded.Stop=false;for(int i=0;i<persistentDataThreads.Length;++i){persistentDataThreads[i]=new persistentDataMultithreaded();}
 }
 //Debug.Log("instantiating:"+instantiating);
 if(!instantiating){
 if(loadingRequired){Debug.Log("loadingRequired");
 reloadTimer=reloadInterval;
-files.Inbounds(bounds);
-fileSearchMultithreaded.Schedule(files);
+searching.Inbounds(bounds);
+fileSearchMultithreaded.Schedule(searching);
 }
 instantiating=loadingRequired||spawnerQueue.Count>0;//Debug.Log("instantiation requested:"+instantiating);
 loadingRequired=false;
@@ -100,7 +100,7 @@ foreach(var at in toSpawn.at){
 Place(at.position,at.rotation,at.scale,at.type);
 }
 }
-foreach(var fileIndex in files.foundFileIndexes){
+foreach(var fileIndex in searching.foundFileIndexes){
 if(active.ContainsKey((fileIndex.type,fileIndex.id))){Debug.Log("sim object already loaded");continue;}
 Debug.Log("place sim object for file found:"+fileIndex);
 Place(Vector3.zero,Vector3.zero,Vector3.one,fileIndex.type,(fileIndex.id,fileIndex.cnkIdx));
@@ -109,7 +109,7 @@ instantiating=false;
 goto Loop;}
 internal static void OnDisabledSim(simObject sO){Debug.Log("OnDisabledSim");
 Type type=sO.GetType();
-singleton.files.unloadedFilesSyn.Add(sO.fileData.syn);
+singleton.searching.unloadedFilesSyn.Add(sO.fileData.syn);
 active.Remove((type,sO.id.Value));
 sO.id=null;
 sO.disabled=pool[type].AddLast(sO);
@@ -134,7 +134,7 @@ id=fromFoundFile.Value.id;
 }
 result.id=id;
 result.fileIndex=fromFoundFile;
-files.loadedFilesSyn.Add(result.fileData.syn);
+searching.loadedFilesSyn.Add(result.fileData.syn);
 active[(type,id)]=result;
 return result;}
 internal readonly uniqueIds ids=new uniqueIds();
@@ -212,7 +212,7 @@ jsonSerializer.Serialize(json,current.deadIds,typeof(Dictionary<Type,List<ulong>
 }
 }
 }
-internal readonly fileSearch files=new fileSearch();
+internal readonly fileSearch searching=new fileSearch();
 internal class fileSearch:backgroundObject{
 internal readonly List<object>unloadedFilesSyn=new List<object>();
   internal readonly List<object>loadedFilesSyn=new List<object>();
@@ -229,7 +229,7 @@ unloadedFilesSyn.Clear();
 }
 internal readonly HashSet<(Type type,ulong id,int cnkIdx)>foundFileIndexes=new HashSet<(Type,ulong,int)>();
 }
-internal fileSearchMultithreaded filesThread;
+internal fileSearchMultithreaded searchingThread;
 internal class fileSearchMultithreaded:baseMultithreaded<fileSearch>{
 protected override void Renew(fileSearch next){
 }
@@ -254,7 +254,7 @@ string transformPath=string.Format("{0}{1}/",perChunkSavePath,cnkIdx1);
 if(
 Directory.Exists(transformPath)){
 foreach(var transformFile in 
-Directory.GetFiles(transformPath)){
+Directory.GetFiles(transformPath,"(*,*)*")){
 //Debug.Log("sim object file:.."+transformFile);
 string transformFileName=
 Path.GetFileName(transformFile);

@@ -1,17 +1,22 @@
 using LibNoise;
 using LibNoise.Generator;
 using LibNoise.Operator;
+using Newtonsoft.Json;
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Threading;
 using Unity.Netcode;
 using Unity.Netcode.Transports.UNET;
 using UnityEngine;
 using static AKCondinoO.core;
 using static AKCondinoO.Voxels.voxelTerrain.atlasHelper;
+using static AKCondinoO.Voxels.voxelTerrain.editing;
 using static AKCondinoO.Voxels.voxelTerrainChunk;
 using static AKCondinoO.Voxels.voxelTerrainChunk.marchingCubesMultithreaded;
+using static Utils;
 namespace AKCondinoO.Voxels{internal class voxelTerrain:MonoBehaviour{
 [NonSerialized]internal const double IsoLevel=-50.0d;
 internal const int MaxcCoordx=6250;
@@ -53,6 +58,8 @@ internal static readonly Dictionary<UNetPrefab,(Vector2Int cCoord,Vector2Int cCo
 [SerializeField]internal voxelTerrainChunk prefab;internal static readonly Dictionary<int,voxelTerrainChunk>active=new Dictionary<int,voxelTerrainChunk>();internal static readonly List<voxelTerrainChunk>all=new List<voxelTerrainChunk>();internal static readonly LinkedList<voxelTerrainChunk>pool=new LinkedList<voxelTerrainChunk>();internal static int poolSize=0;
 readonly marchingCubesMultithreaded[]marchingCubesThreads=new marchingCubesMultithreaded[Environment.ProcessorCount];
 void OnDisable(){
+edits.OnExitSave(editsThread);
+editingMultithreaded.Stop=true;editsThread?.Wait();editingMultithreaded.Clear();
 marchingCubesMultithreaded.Stop=true;for(int i=0;i<marchingCubesThreads.Length;++i){marchingCubesThreads[i]?.Wait();}marchingCubesMultithreaded.Clear();
 foreach(var cnk in all){cnk.Dispose();}
 }
@@ -61,18 +68,31 @@ foreach(var cnk in all){Debug.Log("destroy terrain chunk");
 cnk.mC.backgroundData.Dispose();
 cnk.mC.foregroundData.Dispose();
 }
+edits.backgroundData.Dispose();
+edits.foregroundData.Dispose();
 biome.Dispose();
 }
 void OnEnable(){
 GetAtlasData(prefab.GetComponent<MeshRenderer>().sharedMaterial);
 foreach(var cnk in all){cnk.Prepare();}
 marchingCubesMultithreaded.Stop=false;for(int i=0;i<marchingCubesThreads.Length;++i){marchingCubesThreads[i]=new marchingCubesMultithreaded();}
+editingMultithreaded.Stop=false;editsThread=new editingMultithreaded();
 }
+[SerializeField]bool       DEBUG_EDIT=false;
+[SerializeField]Vector3    DEBUG_EDIT_AT=Vector3.zero;
+[SerializeField]editMode   DEBUG_EDIT_MODE=editMode.cube;
+[SerializeField]Vector3Int DEBUG_EDIT_SIZE=new Vector3Int(3,3,3);
+[SerializeField]double     DEBUG_EDIT_DENSITY=100.0;
+[SerializeField]materialId DEBUG_EDIT_MATERIAL_ID=materialId.Dirt;
+[SerializeField]int        DEBUG_EDIT_SMOOTHNESS=5;
 void Update(){
 if(!NetworkManager.Singleton.IsServer
  &&!NetworkManager.Singleton.IsClient){
 if(poolSize!=0){Debug.Log("terrain disconnected");
+edits.OnExitSave(editsThread);
+editingMultithreaded.Stop=true;editsThread?.Wait();editingMultithreaded.Clear();
 marchingCubesMultithreaded.Stop=true;for(int i=0;i<marchingCubesThreads.Length;++i){marchingCubesThreads[i]?.Wait();}marchingCubesMultithreaded.Clear();
+edits.allChunksSyn.Clear();
 foreach(var cnk in all){cnk.Dispose();
 cnk.mC.backgroundData.Dispose();
 cnk.mC.foregroundData.Dispose();
@@ -90,8 +110,19 @@ biome.Seed=0;
 int requiredPoolSize=NetworkManager.Singleton.GetComponent<UNetTransport>().MaxConnections*(expropriationDistance.x*2+1)*(expropriationDistance.y*2+1);
 for(int i=poolSize;i<requiredPoolSize;poolSize=++i){
 voxelTerrainChunk cnk;all.Add(cnk=Instantiate(prefab));cnk.expropriated=pool.AddLast(cnk);cnk.network.Spawn();
+edits.allChunksSyn.Add(cnk.mC.syn);
 }
 marchingCubesMultithreaded.Stop=false;for(int i=0;i<marchingCubesThreads.Length;++i){marchingCubesThreads[i]=new marchingCubesMultithreaded();}
+editingMultithreaded.Stop=false;editsThread=new editingMultithreaded();
+}
+if(DEBUG_EDIT){
+   DEBUG_EDIT=false;
+edits.Edit(DEBUG_EDIT_AT,DEBUG_EDIT_MODE,DEBUG_EDIT_SIZE,DEBUG_EDIT_DENSITY,DEBUG_EDIT_MATERIAL_ID,DEBUG_EDIT_SMOOTHNESS);
+}
+if(edits.requests.Count>0){
+if(edits.backgroundData.WaitOne(0)){Debug.Log("process edits.requests");
+editingMultithreaded.Schedule(edits);
+}
 }
 foreach(var movement in bounds){if(movement.Value==null)continue;var moved=movement.Value;Vector2Int bCoord_Pre=moved.Value.cCoord_Pre;Vector2Int bCoord=moved.Value.cCoord;
 for(Vector2Int eCoord=new Vector2Int(),cCoord1=new Vector2Int();eCoord.y<=expropriationDistance.y;eCoord.y++){for(cCoord1.y=-eCoord.y+bCoord_Pre.y;cCoord1.y<=eCoord.y+bCoord_Pre.y;cCoord1.y+=eCoord.y*2){
@@ -250,6 +281,134 @@ Bedrock=1,//  Indestrutível
 Dirt=2,
 Rock=3,
 Sand=4,
+}
+}
+internal readonly editing edits=new editing();
+internal class editing:backgroundObject{
+internal readonly List<object>allChunksSyn=new List<object>();
+internal void OnExitSave(editingMultithreaded thread){
+if(thread!=null&&thread.IsRunning()){
+backgroundData.WaitOne();editingMultithreaded.Schedule(this);backgroundData.WaitOne();Debug.Log("editing voxel terrain: exit save successful");
+}
+}
+internal enum editMode{cube,}
+internal readonly ConcurrentQueue<editRequest>requests=new ConcurrentQueue<editRequest>();
+internal class editRequest{
+internal Vector3 center;internal editMode mode;internal Vector3Int size;internal double density;internal materialId material;internal int smoothness;
+}
+internal void Edit(Vector3 at,editMode mode,Vector3Int size,double density,materialId material,int smoothness){
+requests.Enqueue(new editRequest{
+center=at,mode=mode,size=size,density=density,material=material,smoothness=smoothness,
+});
+}
+}
+internal editingMultithreaded editsThread;
+internal class editingMultithreaded:baseMultithreaded<editing>{
+readonly JsonSerializer jsonSerializer=new JsonSerializer();
+protected override void Renew(editing next){
+}
+protected override void Release(){
+}
+protected override void Cleanup(){
+loadedData.Clear();
+savingData.Clear();
+}
+readonly Dictionary<int,Dictionary<SerializableVector3Int,(double density,materialId materialId)>>loadedData=new Dictionary<int,Dictionary<SerializableVector3Int,(double,materialId)>>();
+readonly Dictionary<int,Dictionary<SerializableVector3Int,(double density,materialId materialId)>>savingData=new Dictionary<int,Dictionary<SerializableVector3Int,(double,materialId)>>();
+protected override void Execute(){Debug.Log("Execute()");
+while(current.requests.TryDequeue(out editRequest edit)){
+Debug.Log("edit:center:"+edit.center+";mode:"+edit.mode);
+Vector3 center=edit.center;Vector3Int size=edit.size;double density=edit.density;materialId material=edit.material;int smoothness=edit.smoothness;
+switch(edit.mode){
+default:{
+float sqrt_yx_1=Mathf.Sqrt(Mathf.Pow(size.y,2)+Mathf.Pow(size.x,2)),sqrt_yx_2;
+float sqrt_xz_1=Mathf.Sqrt(Mathf.Pow(size.x,2)+Mathf.Pow(size.z,2)),sqrt_xz_2;
+float sqrt_zy_1=Mathf.Sqrt(Mathf.Pow(size.z,2)+Mathf.Pow(size.y,2)),sqrt_zy_2;
+float sqrt_yx_xz_1=Mathf.Sqrt(Mathf.Pow(sqrt_yx_1,2)+Mathf.Pow(sqrt_xz_1,2));float sqrt_yx_xz_zy_1=Mathf.Sqrt(Mathf.Pow(sqrt_yx_xz_1,2)+Mathf.Pow(sqrt_zy_1,2));
+Vector3Int vCoord1=vecPosTovCoord(center ),vCoord2,vCoord3;
+Vector2Int cCoord1=vecPosTocCoord(center ),        cCoord3;
+Vector2Int cnkRgn1=cCoordTocnkRgn(cCoord1),        cnkRgn3;
+for(int y=0;y<size.y+smoothness;++y){for(vCoord2=new Vector3Int(vCoord1.x,vCoord1.y-y,vCoord1.z);vCoord2.y<=vCoord1.y+y;vCoord2.y+=y*2){if(vCoord2.y>=0&&vCoord2.y<Height){
+for(int x=0;x<size.x+smoothness;++x){for(vCoord2.x=vCoord1.x-x                                  ;vCoord2.x<=vCoord1.x+x;vCoord2.x+=x*2){
+sqrt_yx_2=Mathf.Sqrt(Mathf.Pow(y,2)+Mathf.Pow(x,2));
+for(int z=0;z<size.z+smoothness;++z){for(vCoord2.z=vCoord1.z-z                                  ;vCoord2.z<=vCoord1.z+z;vCoord2.z+=z*2){
+cCoord3=cCoord1;
+cnkRgn3=cnkRgn1;
+vCoord3=vCoord2;
+if(vCoord2.x<0||vCoord2.x>=Width||
+   vCoord2.z<0||vCoord2.z>=Depth){ValidateCoord(ref cnkRgn3,ref vCoord3);cCoord3=cnkRgnTocCoord(cnkRgn3);}
+       int cnkIdx3=GetcnkIdx(cCoord3.x,cCoord3.y);
+sqrt_xz_2=Mathf.Sqrt(Mathf.Pow(x,2)+Mathf.Pow(z,2));
+sqrt_zy_2=Mathf.Sqrt(Mathf.Pow(z,2)+Mathf.Pow(y,2));
+double resultDensity;
+if(y>=size.y||x>=size.x||z>=size.z){
+if(y>=size.y&&x>=size.x&&z>=size.z){
+float sqrt_yx_xz_2=Mathf.Sqrt(Mathf.Pow(sqrt_yx_2,2)+Mathf.Pow(sqrt_xz_2,2));float sqrt_yx_xz_zy_2=Mathf.Sqrt(Mathf.Pow(sqrt_yx_xz_2,2)+Mathf.Pow(sqrt_zy_2,2));
+resultDensity=density*(1f-(sqrt_yx_xz_zy_2-sqrt_yx_xz_1)/(sqrt_yx_xz_zy_2));
+}else if(y>=size.y&&x>=size.x){resultDensity=density*(1f-(sqrt_yx_2-sqrt_yx_1)/(sqrt_yx_2));
+}else if(x>=size.x&&z>=size.z){resultDensity=density*(1f-(sqrt_xz_2-sqrt_xz_1)/(sqrt_xz_2));
+}else if(z>=size.z&&y>=size.y){resultDensity=density*(1f-(sqrt_zy_2-sqrt_zy_1)/(sqrt_zy_2));
+}else if(y>=size.y){resultDensity=density*(1f-(y-size.y)/(float)y)*1.414f;
+}else if(x>=size.x){resultDensity=density*(1f-(x-size.x)/(float)x)*1.414f;
+}else if(z>=size.z){resultDensity=density*(1f-(z-size.z)/(float)z)*1.414f;
+}else{resultDensity=0d;}
+}else{resultDensity=density;}
+if(!loadedData.ContainsKey(cnkIdx3)){
+string editDataPath=string.Format("{0}{1}/",perChunkSavePath,cnkIdx3);
+string editDataFile=string.Format("{0}_edits.JsonSerializer",editDataPath);
+//Debug.Log("editDataFile:"+editDataFile);
+//Debug.Log("editDataPath:"+editDataPath);
+if(
+File.Exists(editDataFile)){
+}
+}
+voxel currentVoxel;
+if(loadedData.ContainsKey(cnkIdx3)&&loadedData[cnkIdx3].ContainsKey(vCoord3)){
+var voxelData=loadedData[cnkIdx3][vCoord3];
+currentVoxel=new voxel(voxelData.density,Vector3.zero,voxelData.materialId);
+}else{
+currentVoxel=new voxel();
+Vector3Int noiseInput=vCoord3;noiseInput.x+=cnkRgn3.x;
+                              noiseInput.z+=cnkRgn3.y;
+biome.Setvxl(noiseInput,null,null,0,vCoord3.z+vCoord3.x*Depth,ref currentVoxel);
+}
+resultDensity=Math.Max(resultDensity,currentVoxel.Density);
+if(material==materialId.Air&&!(-resultDensity>=50d)){
+resultDensity=-resultDensity;
+}
+if(!savingData.ContainsKey(cnkIdx3))savingData.Add(cnkIdx3,new Dictionary<SerializableVector3Int,(double density,materialId materialId)>());
+savingData[cnkIdx3][vCoord3]=(resultDensity,-resultDensity>=50d?materialId.Air:material);
+ if(z==0){break;}}}
+ if(x==0){break;}}}
+}if(y==0){break;}}}
+break;}
+}
+}
+foreach(var syn in current.allChunksSyn)Monitor.Enter(syn);try{
+foreach(var saving in savingData){int cnkIdx1=saving.Key;
+string editDataPath=string.Format("{0}{1}/",perChunkSavePath,cnkIdx1);
+string editDataFile=string.Format("{0}_edits.JsonSerializer",editDataPath);
+Directory.CreateDirectory(editDataPath);
+Debug.Log("editDataFile:"+editDataFile);
+Debug.Log("editDataPath:"+editDataPath);
+using(var file=new FileStream(editDataFile,FileMode.OpenOrCreate,FileAccess.ReadWrite,FileShare.None)){
+if(file.Length>0){
+using(var reader=new StreamReader(file)){using(var json=new JsonTextReader(reader)){
+Dictionary<SerializableVector3Int,(double density,materialId materialId)>fileVoxels=((List<KeyValuePair<SerializableVector3Int,(double density,materialId materialId)>>)jsonSerializer.Deserialize(json,typeof(List<KeyValuePair<SerializableVector3Int,(double density,materialId materialId)>>))).ToDictionary(kvp=>kvp.Key,kvp=>kvp.Value);
+foreach(var fileVoxel in fileVoxels){
+}
+}}
+}
+}
+using(var file=new FileStream(editDataFile,FileMode.OpenOrCreate,FileAccess.ReadWrite,FileShare.None)){
+file.SetLength(0);
+file.Flush(true);
+using(var writer=new StreamWriter(file)){using(var json=new JsonTextWriter(writer)){
+jsonSerializer.Serialize(json,saving.Value.ToList(),typeof(List<KeyValuePair<SerializableVector3Int,(double density,materialId materialId)>>));
+}}
+}
+}
+}catch{throw;}finally{foreach(var syn in current.allChunksSyn)Monitor.Exit(syn);}
 }
 }
 }}
