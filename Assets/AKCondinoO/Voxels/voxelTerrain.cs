@@ -1,6 +1,7 @@
 using LibNoise;
 using LibNoise.Generator;
 using LibNoise.Operator;
+using MessagePack;
 using Newtonsoft.Json;
 using System;
 using System.Collections.Concurrent;
@@ -119,8 +120,15 @@ if(DEBUG_EDIT){
    DEBUG_EDIT=false;
 edits.Edit(DEBUG_EDIT_AT,DEBUG_EDIT_MODE,DEBUG_EDIT_SIZE,DEBUG_EDIT_DENSITY,DEBUG_EDIT_MATERIAL_ID,DEBUG_EDIT_SMOOTHNESS);
 }
-if(edits.requests.Count>0){
-if(edits.backgroundData.WaitOne(0)){Debug.Log("process edits.requests");
+if(edits.backgroundData.WaitOne(0)){
+if(edits.dirty.Count>0){Debug.Log("rebuild edits.dirty");
+foreach(int dirty in edits.dirty){
+if(active.TryGetValue(dirty,out voxelTerrainChunk cnk)){
+cnk.OnEdited();
+}
+}edits.dirty.Clear();
+}
+if(edits.requests.Count>0){Debug.Log("process edits.requests");
 editingMultithreaded.Schedule(edits);
 }
 }
@@ -301,6 +309,7 @@ requests.Enqueue(new editRequest{
 center=at,mode=mode,size=size,density=density,material=material,smoothness=smoothness,
 });
 }
+internal readonly HashSet<int>dirty=new HashSet<int>();
 }
 internal editingMultithreaded editsThread;
 internal class editingMultithreaded:baseMultithreaded<editing>{
@@ -313,8 +322,8 @@ protected override void Cleanup(){
 loadedData.Clear();
 savingData.Clear();
 }
-readonly Dictionary<int,Dictionary<SerializableVector3Int,(double density,materialId materialId)>>loadedData=new Dictionary<int,Dictionary<SerializableVector3Int,(double,materialId)>>();
-readonly Dictionary<int,Dictionary<SerializableVector3Int,(double density,materialId materialId)>>savingData=new Dictionary<int,Dictionary<SerializableVector3Int,(double,materialId)>>();
+readonly Dictionary<int,Dictionary<Vector3Int,(double density,materialId materialId)>>loadedData=new Dictionary<int,Dictionary<Vector3Int,(double,materialId)>>();
+readonly Dictionary<int,Dictionary<Vector3Int,(double density,materialId materialId)>>savingData=new Dictionary<int,Dictionary<Vector3Int,(double,materialId)>>();
 protected override void Execute(){Debug.Log("Execute()");
 while(current.requests.TryDequeue(out editRequest edit)){
 Debug.Log("edit:center:"+edit.center+";mode:"+edit.mode);
@@ -355,11 +364,17 @@ resultDensity=density*(1f-(sqrt_yx_xz_zy_2-sqrt_yx_xz_1)/(sqrt_yx_xz_zy_2));
 }else{resultDensity=density;}
 if(!loadedData.ContainsKey(cnkIdx3)){
 string editDataPath=string.Format("{0}{1}/",perChunkSavePath,cnkIdx3);
-string editDataFile=string.Format("{0}_edits.JsonSerializer",editDataPath);
-//Debug.Log("editDataFile:"+editDataFile);
-//Debug.Log("editDataPath:"+editDataPath);
+string editDataFile=string.Format("{0}_edits.MessagePackSerializer",editDataPath);
 if(
 File.Exists(editDataFile)){
+//Debug.Log("editDataFile:"+editDataFile);
+//Debug.Log("editDataPath:"+editDataPath);
+using(var file=new FileStream(editDataFile,FileMode.Open,FileAccess.Read,FileShare.Read)){
+if(file.Length>0){
+Dictionary<Vector3Int,(double density,materialId materialId)>fileVoxels=(Dictionary<Vector3Int,(double density,materialId materialId)>)MessagePackSerializer.Deserialize(typeof(Dictionary<Vector3Int,(double density,materialId materialId)>),file);
+loadedData.Add(cnkIdx3,fileVoxels);
+}
+}
 }
 }
 voxel currentVoxel;
@@ -376,8 +391,18 @@ resultDensity=Math.Max(resultDensity,currentVoxel.Density);
 if(material==materialId.Air&&!(-resultDensity>=50d)){
 resultDensity=-resultDensity;
 }
-if(!savingData.ContainsKey(cnkIdx3))savingData.Add(cnkIdx3,new Dictionary<SerializableVector3Int,(double density,materialId materialId)>());
+if(!savingData.ContainsKey(cnkIdx3))savingData.Add(cnkIdx3,new Dictionary<Vector3Int,(double density,materialId materialId)>());
 savingData[cnkIdx3][vCoord3]=(resultDensity,-resultDensity>=50d?materialId.Air:material);
+current.dirty.Add(cnkIdx3);
+for(int ngbx=-1;ngbx<=1;ngbx++){
+for(int ngbz=-1;ngbz<=1;ngbz++){
+if(ngbx==0&&ngbz==0)continue;
+Vector2Int nCoord1=cCoord3+new Vector2Int(ngbx,ngbz);
+if(Math.Abs(nCoord1.x)>=MaxcCoordx||
+   Math.Abs(nCoord1.y)>=MaxcCoordy){continue;}
+       int ngbIdx1=GetcnkIdx(nCoord1.x,nCoord1.y);
+current.dirty.Add(ngbIdx1);
+}}
  if(z==0){break;}}}
  if(x==0){break;}}}
 }if(y==0){break;}}}
@@ -387,25 +412,22 @@ break;}
 foreach(var syn in current.allChunksSyn)Monitor.Enter(syn);try{
 foreach(var saving in savingData){int cnkIdx1=saving.Key;
 string editDataPath=string.Format("{0}{1}/",perChunkSavePath,cnkIdx1);
-string editDataFile=string.Format("{0}_edits.JsonSerializer",editDataPath);
+string editDataFile=string.Format("{0}_edits.MessagePackSerializer",editDataPath);
 Directory.CreateDirectory(editDataPath);
 Debug.Log("editDataFile:"+editDataFile);
 Debug.Log("editDataPath:"+editDataPath);
 using(var file=new FileStream(editDataFile,FileMode.OpenOrCreate,FileAccess.ReadWrite,FileShare.None)){
 if(file.Length>0){
-using(var reader=new StreamReader(file)){using(var json=new JsonTextReader(reader)){
-Dictionary<SerializableVector3Int,(double density,materialId materialId)>fileVoxels=((List<KeyValuePair<SerializableVector3Int,(double density,materialId materialId)>>)jsonSerializer.Deserialize(json,typeof(List<KeyValuePair<SerializableVector3Int,(double density,materialId materialId)>>))).ToDictionary(kvp=>kvp.Key,kvp=>kvp.Value);
+Dictionary<Vector3Int,(double density,materialId materialId)>fileVoxels=(Dictionary<Vector3Int,(double density,materialId materialId)>)MessagePackSerializer.Deserialize(typeof(Dictionary<Vector3Int,(double density,materialId materialId)>),file);
 foreach(var fileVoxel in fileVoxels){
+if(!saving.Value.ContainsKey(fileVoxel.Key)){saving.Value.Add(fileVoxel.Key,fileVoxel.Value);}
 }
-}}
 }
 }
 using(var file=new FileStream(editDataFile,FileMode.OpenOrCreate,FileAccess.ReadWrite,FileShare.None)){
 file.SetLength(0);
 file.Flush(true);
-using(var writer=new StreamWriter(file)){using(var json=new JsonTextWriter(writer)){
-jsonSerializer.Serialize(json,saving.Value.ToList(),typeof(List<KeyValuePair<SerializableVector3Int,(double density,materialId materialId)>>));
-}}
+MessagePackSerializer.Serialize(typeof(Dictionary<Vector3Int,(double density,materialId materialId)>),file,saving.Value);
 }
 }
 }catch{throw;}finally{foreach(var syn in current.allChunksSyn)Monitor.Exit(syn);}

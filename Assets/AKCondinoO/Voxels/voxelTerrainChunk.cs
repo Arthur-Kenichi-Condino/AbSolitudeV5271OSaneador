@@ -1,7 +1,10 @@
+using MessagePack;
+using Newtonsoft.Json;
 using paulbourke.MarchingCubes;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.IO;
 using System.Linq;
 using Unity.Collections;
 using Unity.Jobs;
@@ -12,6 +15,7 @@ using static AKCondinoO.core;
 using static AKCondinoO.Voxels.voxelTerrain;
 using static AKCondinoO.Voxels.voxelTerrain.atlasHelper;
 using static AKCondinoO.Voxels.voxelTerrainChunk.marchingCubes;
+using static Utils;
 namespace AKCondinoO.Voxels{internal class voxelTerrainChunk:NetworkBehaviour{
 internal const ushort Height=(256);
 internal const ushort Width=(16);
@@ -86,6 +90,7 @@ if(mC.backgroundData.WaitOne(0)){
 cnkIdxChanged=false;
 mC.cCoord_bg=cCoord;
 mC.cnkRgn_bg=cnkRgn;
+mC.cnkIdx_bg=cnkIdx.Value;
 marchingCubesRunning=true;
 marchingCubesMultithreaded.Schedule(mC);
 }
@@ -100,6 +105,10 @@ internal void OncCoordChanged(Vector2Int cCoord1,int cnkIdx1){
 cCoord=cCoord1;
 cnkRgn=cCoordTocnkRgn(cCoord);worldBounds.center=transform.position=new Vector3(cnkRgn.x,0,cnkRgn.y);
 cnkIdx=cnkIdx1;cnkIdxChanged=true;
+meshDirty=true;
+}
+public void OnEdited(){Debug.Log("OnEdited()");
+/*           */cnkIdxChanged=true;
 meshDirty=true;
 }
 bool baking;JobHandle bakingHandle;BakerJob bakeJob;struct BakerJob:IJob{public int meshId;public void Execute(){Physics.BakeMesh(meshId,false);}}
@@ -135,6 +144,7 @@ if(TempTri.IsCreated)TempTri.Dispose();
 }
 internal Vector2Int cCoord_bg;
 internal Vector2Int cnkRgn_bg;
+internal        int cnkIdx_bg;
 }
 internal class marchingCubesMultithreaded:baseMultithreaded<marchingCubes>{
 static Vector3 trianglePosAdj{get;}=new Vector3((Width/2.0f)-0.5f,(Height/2.0f)-0.5f,(Depth/2.0f)-0.5f);static Vector2 emptyUV{get;}=new Vector2(-1,-1);
@@ -157,6 +167,7 @@ mCache[i]=new materialId[9][];
 for(int i=0;i<voxelsBuffer1[2].Length;++i){voxelsBuffer1[2][i]=new voxel[4];if(i<voxelsBuffer1[1].Length){voxelsBuffer1[1][i]=new voxel[4];}}
 for(int i=0;i<verticesBuffer[2].Length;++i){verticesBuffer[2][i]=new Vector3[4];if(i<verticesBuffer[1].Length){verticesBuffer[1][i]=new Vector3[4];}}
 }
+readonly JsonSerializer jsonSerializer=new JsonSerializer();
 NativeList<vertex>TempVer;
 NativeList<UInt32>TempTri;
 Vector2Int cCoord1{get{return current.cCoord_bg;}}
@@ -203,6 +214,45 @@ readonly Dictionary<Vector3,List<Vector2>>vertexUV=new Dictionary<Vector3,List<V
 protected override void Execute(){//Debug.Log("Execute");
 TempVer.Clear();UInt32 vertexCount=0;
 TempTri.Clear();
+lock(current.syn){
+string editDataPath=string.Format("{0}{1}/",perChunkSavePath,current.cnkIdx_bg);
+string editDataFile=string.Format("{0}_edits.MessagePackSerializer",editDataPath);
+if(
+File.Exists(editDataFile)){
+using(var file=new FileStream(editDataFile,FileMode.Open,FileAccess.Read,FileShare.Read)){
+if(file.Length>0){
+Dictionary<Vector3Int,(double density,materialId materialId)>fileVoxels=(Dictionary<Vector3Int,(double density,materialId materialId)>)MessagePackSerializer.Deserialize(typeof(Dictionary<Vector3Int,(double density,materialId materialId)>),file);
+foreach(var fileVoxel in fileVoxels){
+voxels[GetvxlIdx(fileVoxel.Key.x,fileVoxel.Key.y,fileVoxel.Key.z)]=new voxel(fileVoxel.Value.density,Vector3.zero,fileVoxel.Value.materialId);
+}
+}
+}
+}
+for(int x=-1;x<=1;x++){
+for(int z=-1;z<=1;z++){
+if(x==0&&z==0)continue;
+Vector2Int nCoord1=cCoord1;
+           nCoord1.x+=x;
+           nCoord1.y+=z;
+if(Math.Abs(nCoord1.x)>=MaxcCoordx||
+   Math.Abs(nCoord1.y)>=MaxcCoordy){continue;}
+       int ngbIdx1=GetcnkIdx(nCoord1.x,nCoord1.y);
+       editDataPath=string.Format("{0}{1}/",perChunkSavePath,ngbIdx1);
+       editDataFile=string.Format("{0}_edits.MessagePackSerializer",editDataPath);
+int oftIdx1=GetoftIdx(nCoord1-cCoord1)-1;
+if(
+File.Exists(editDataFile)){
+using(var file=new FileStream(editDataFile,FileMode.Open,FileAccess.Read,FileShare.Read)){
+if(file.Length>0){
+Dictionary<Vector3Int,(double density,materialId materialId)>fileVoxels=(Dictionary<Vector3Int,(double density,materialId materialId)>)MessagePackSerializer.Deserialize(typeof(Dictionary<Vector3Int,(double density,materialId materialId)>),file);
+foreach(var fileVoxel in fileVoxels){
+neighbors[oftIdx1][GetvxlIdx(fileVoxel.Key.x,fileVoxel.Key.y,fileVoxel.Key.z)]=new voxel(fileVoxel.Value.density,Vector3.zero,fileVoxel.Value.materialId);
+}
+}
+}
+}
+}}
+}
 Vector2Int posOffset=Vector2Int.zero;
 Vector2Int crdOffset=Vector2Int.zero;
 Vector3Int vCoord1;

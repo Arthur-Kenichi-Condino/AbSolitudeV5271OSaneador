@@ -44,3 +44,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   prefab: {fileID: 8154831050069284690, guid: f7321dbfdbf060646b4345fe4662a854, type: 3}
+  DEBUG_EDIT: 0
+  DEBUG_EDIT_AT: {x: 0, y: 40, z: 0}
+  DEBUG_EDIT_MODE: 0
+  DEBUG_EDIT_SIZE: {x: 3, y: 3, z: 3}
+  DEBUG_EDIT_DENSITY: 100
+  DEBUG_EDIT_MATERIAL_ID: 2
+  DEBUG_EDIT_SMOOTHNESS: 5
