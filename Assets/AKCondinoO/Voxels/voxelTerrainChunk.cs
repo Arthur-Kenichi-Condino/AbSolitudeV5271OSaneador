@@ -10,12 +10,13 @@ using Unity.Collections;
 using Unity.Jobs;
 using Unity.Netcode;
 using UnityEngine;
+using UnityEngine.AI;
 using UnityEngine.Rendering;
 using static AKCondinoO.core;
 using static AKCondinoO.Voxels.voxelTerrain;
 using static AKCondinoO.Voxels.voxelTerrain.atlasHelper;
 using static AKCondinoO.Voxels.voxelTerrainChunk.marchingCubes;
-using static Utils;
+using static utils;
 namespace AKCondinoO.Voxels{internal class voxelTerrainChunk:NetworkBehaviour{
 internal const ushort Height=(256);
 internal const ushort Width=(16);
@@ -44,6 +45,19 @@ mesh=new Mesh(){bounds=worldBounds=new Bounds(Vector3.zero,new Vector3(Width,Hei
 bakeJob=new BakerJob(){meshId=mesh.GetInstanceID(),};
 renderer=GetComponent<MeshRenderer>();
 collider=GetComponent<MeshCollider>();
+navMeshSources[gameObject]=new NavMeshBuildSource{
+transform=transform.localToWorldMatrix,
+shape=NavMeshBuildSourceShape.Mesh,
+sourceObject=mesh,
+component=collider,
+area=0,//  walkable
+};
+navMeshMarkups[gameObject]=new NavMeshBuildMarkup{
+root=transform,
+area=0,//  walkable
+overrideArea=false,
+ignoreFromBuild=false,
+};
 Prepare();
 }
 internal bool isPrepared;
@@ -57,7 +71,7 @@ internal void Dispose(){//Debug.Log("Dispose");
 if(isPrepared){
 isPrepared=false;
 bakingHandle.Complete();
-mC.OnStop();/*  :mC has invalid data now:  */if(meshDirty){cnkIdxChanged=true;marchingCubesRunning=false;baking=false;}
+mC.OnStop();/*  :mC has invalid data now:  */if(meshDirty){meshBuildRequested=true;marchingCubesRunning=false;baking=false;}
 }
 }
 internal bool meshDirty;
@@ -70,7 +84,7 @@ if(isPrepared){
 if(baking){
 if(bakingHandle.IsCompleted){bakingHandle.Complete();//Debug.Log("bakingHandle.IsCompleted");
 baking=false;
-if(!cnkIdxChanged){//Debug.Log("mesh is built now");
+if(!meshBuildRequested){//Debug.Log("mesh is built now");
 renderer.enabled=true;
 collider.enabled=true;
 collider.sharedMesh=null;
@@ -87,7 +101,7 @@ bakingHandle=bakeJob.Schedule();
 }
 }else if(meshDirty){
 if(mC.backgroundData.WaitOne(0)){
-cnkIdxChanged=false;
+meshBuildRequested=false;
 mC.cCoord_bg=cCoord;
 mC.cnkRgn_bg=cnkRgn;
 mC.cnkIdx_bg=cnkIdx.Value;
@@ -100,15 +114,17 @@ marchingCubesMultithreaded.Schedule(mC);
 }
 Vector2Int cCoord;
 Vector2Int cnkRgn;
-internal int?cnkIdx=null;bool cnkIdxChanged;
+internal int?cnkIdx=null;
+bool meshBuildRequested;
 internal void OncCoordChanged(Vector2Int cCoord1,int cnkIdx1){
 cCoord=cCoord1;
-cnkRgn=cCoordTocnkRgn(cCoord);worldBounds.center=transform.position=new Vector3(cnkRgn.x,0,cnkRgn.y);
-cnkIdx=cnkIdx1;cnkIdxChanged=true;
+cnkRgn=cCoordTocnkRgn(cCoord);worldBounds.center=transform.position=new Vector3(cnkRgn.x,0,cnkRgn.y);var navMeshSource=navMeshSources[gameObject];navMeshSource.transform=transform.localToWorldMatrix;navMeshSources[gameObject]=navMeshSource;
+cnkIdx=cnkIdx1;
+meshBuildRequested=true;
 meshDirty=true;
 }
 public void OnEdited(){Debug.Log("OnEdited()");
-/*           */cnkIdxChanged=true;
+meshBuildRequested=true;
 meshDirty=true;
 }
 bool baking;JobHandle bakingHandle;BakerJob bakeJob;struct BakerJob:IJob{public int meshId;public void Execute(){Physics.BakeMesh(meshId,false);}}

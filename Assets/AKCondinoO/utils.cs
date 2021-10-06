@@ -2,7 +2,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
-internal static class Utils{
+internal static class utils{
 #region[https://answers.unity.com/questions/956047/serialize-quaternion-or-vector3.html]
 /// <summary>
 ///  Since unity doesn't flag the Vector3 as serializable, we

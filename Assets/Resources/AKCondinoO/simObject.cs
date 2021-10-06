@@ -13,7 +13,7 @@ using static AKCondinoO.simObject.persistentData;
 using static AKCondinoO.simObjectSpawner;
 using static AKCondinoO.Voxels.voxelTerrain;
 using static AKCondinoO.Voxels.voxelTerrainChunk;
-using static Utils;
+using static utils;
 namespace AKCondinoO{internal class simObject:NetworkBehaviour{
 internal LinkedListNode<simObject>disabled;
 internal ulong?id;internal(ulong id,int?cnkIdx)?fileIndex{get{return fileIndex_v;}

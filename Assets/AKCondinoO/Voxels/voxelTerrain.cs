@@ -12,12 +12,14 @@ using System.Threading;
 using Unity.Netcode;
 using Unity.Netcode.Transports.UNET;
 using UnityEngine;
+using UnityEngine.AI;
 using static AKCondinoO.core;
 using static AKCondinoO.Voxels.voxelTerrain.atlasHelper;
 using static AKCondinoO.Voxels.voxelTerrain.editing;
+using static AKCondinoO.Voxels.voxelTerrain.physHelper;
 using static AKCondinoO.Voxels.voxelTerrainChunk;
 using static AKCondinoO.Voxels.voxelTerrainChunk.marchingCubesMultithreaded;
-using static Utils;
+using static utils;
 namespace AKCondinoO.Voxels{internal class voxelTerrain:MonoBehaviour{
 [NonSerialized]internal const double IsoLevel=-50.0d;
 internal const int MaxcCoordx=6250;
@@ -74,11 +76,16 @@ edits.foregroundData.Dispose();
 biome.Dispose();
 }
 void OnEnable(){
+SetLayerMasks();
 GetAtlasData(prefab.GetComponent<MeshRenderer>().sharedMaterial);
 foreach(var cnk in all){cnk.Prepare();}
 marchingCubesMultithreaded.Stop=false;for(int i=0;i<marchingCubesThreads.Length;++i){marchingCubesThreads[i]=new marchingCubesMultithreaded();}
 editingMultithreaded.Stop=false;editsThread=new editingMultithreaded();
 }
+internal static bool navMeshDirty;
+internal static AsyncOperation[]navMeshAsyncOperation;
+internal static readonly Dictionary<GameObject,NavMeshBuildSource>navMeshSources=new Dictionary<GameObject,NavMeshBuildSource>();static readonly List<NavMeshBuildSource>sources=new List<NavMeshBuildSource>();
+internal static readonly Dictionary<GameObject,NavMeshBuildMarkup>navMeshMarkups=new Dictionary<GameObject,NavMeshBuildMarkup>();static readonly List<NavMeshBuildMarkup>markups=new List<NavMeshBuildMarkup>();
 [SerializeField]bool       DEBUG_EDIT=false;
 [SerializeField]Vector3    DEBUG_EDIT_AT=Vector3.zero;
 [SerializeField]editMode   DEBUG_EDIT_MODE=editMode.cube;
@@ -86,6 +93,7 @@ editingMultithreaded.Stop=false;editsThread=new editingMultithreaded();
 [SerializeField]double     DEBUG_EDIT_DENSITY=100.0;
 [SerializeField]materialId DEBUG_EDIT_MATERIAL_ID=materialId.Dirt;
 [SerializeField]int        DEBUG_EDIT_SMOOTHNESS=5;
+[SerializeField]bool DEBUG_BAKE_NAV_MESH=false;
 void Update(){
 if(!NetworkManager.Singleton.IsServer
  &&!NetworkManager.Singleton.IsClient){
@@ -108,7 +116,9 @@ if(NetworkManager.Singleton.IsServer){
 if(poolSize==0&&!string.IsNullOrEmpty(saveName)){Debug.Log("terrain connected");
 biome.Dispose();
 biome.Seed=0;
-int requiredPoolSize=NetworkManager.Singleton.GetComponent<UNetTransport>().MaxConnections*(expropriationDistance.x*2+1)*(expropriationDistance.y*2+1);
+int maxConnections;
+int requiredPoolSize=(maxConnections=NetworkManager.Singleton.GetComponent<UNetTransport>().MaxConnections)*(expropriationDistance.x*2+1)*(expropriationDistance.y*2+1);
+if(navMeshAsyncOperation==null)navMeshAsyncOperation=new AsyncOperation[maxConnections];else if(navMeshAsyncOperation.Length<maxConnections)Array.Resize(ref navMeshAsyncOperation,maxConnections);
 for(int i=poolSize;i<requiredPoolSize;poolSize=++i){
 voxelTerrainChunk cnk;all.Add(cnk=Instantiate(prefab));cnk.expropriated=pool.AddLast(cnk);cnk.network.Spawn();
 edits.allChunksSyn.Add(cnk.mC.syn);
@@ -165,6 +175,20 @@ if(cnk.expropriated!=null){pool.Remove(cnk.expropriated);cnk.expropriated=(null)
 _skip:{}
 if(iCoord.x==0){break;}}}
 if(iCoord.y==0){break;}}}
+}
+if(DEBUG_BAKE_NAV_MESH){DEBUG_BAKE_NAV_MESH=false;
+navMeshDirty=true;
+}
+if(navMeshDirty){Debug.Log("navMeshDirty=="+navMeshDirty);
+if(navMeshAsyncOperation.All(o=>o==null||o.isDone)){
+navMeshDirty=false;
+sources.Clear();sources.AddRange(navMeshSources.Values);
+markups.Clear();markups.AddRange(navMeshMarkups.Values);
+NavMeshBuilder.CollectSources(null,navMeshLayers,NavMeshCollectGeometry.PhysicsColliders,0,markups,sources);
+int i=0;foreach(var b in bounds){
+navMeshAsyncOperation[i++]=b.Key.BuildNavMesh(sources);
+}
+}
 }
 }
 }
@@ -289,6 +313,12 @@ Bedrock=1,//  Indestrutível
 Dirt=2,
 Rock=3,
 Sand=4,
+}
+}
+internal static class physHelper{
+internal static int navMeshLayers;
+internal static void SetLayerMasks(){
+navMeshLayers=1<<LayerMask.NameToLayer("Default");
 }
 }
 internal readonly editing edits=new editing();
