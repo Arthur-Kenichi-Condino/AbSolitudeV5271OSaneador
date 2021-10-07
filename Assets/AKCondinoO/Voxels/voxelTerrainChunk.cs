@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.IO;
 using System.Linq;
+using System.Threading;
 using Unity.Collections;
 using Unity.Jobs;
 using Unity.Netcode;
@@ -90,6 +91,7 @@ collider.enabled=true;
 collider.sharedMesh=null;
 collider.sharedMesh=mesh;
 meshDirty=false;
+navMeshDirty=true;
 }
 }
 }else if(marchingCubesRunning){
@@ -227,7 +229,9 @@ readonly materialId[]materials=new materialId[12];
 readonly double[]density=new double[2];readonly Vector3[]vertex=new Vector3[2];readonly materialId[]material=new materialId[2];readonly float[]distance=new float[2];
 readonly int[]idx=new int[3];readonly Vector3[]verPos=new Vector3[3];
 readonly Dictionary<Vector3,List<Vector2>>vertexUV=new Dictionary<Vector3,List<Vector2>>();readonly Dictionary<int,int>weights=new Dictionary<int,int>(4);
+static int tasksBusyCount=0;static readonly object tasksBusyCount_Syn=new object();internal static readonly AutoResetEvent tasksBusyQueue=new AutoResetEvent(true);
 protected override void Execute(){//Debug.Log("Execute");
+int millisecondsTimeout;lock(tasksBusyCount_Syn){tasksBusyCount++;millisecondsTimeout=tasksBusyCount*500;}tasksBusyQueue.WaitOne(millisecondsTimeout);
 TempVer.Clear();UInt32 vertexCount=0;
 TempTri.Clear();
 lock(current.syn){
@@ -584,6 +588,7 @@ if(offset.x== 0&&offset.y== 1)return 6;
 if(offset.x==-1&&offset.y== 1)return 7;
 if(offset.x== 1&&offset.y== 1)return 8;
 return -1;}
+lock(tasksBusyCount_Syn){tasksBusyCount--;}tasksBusyQueue.Set();
 }
 }
 #if UNITY_EDITOR

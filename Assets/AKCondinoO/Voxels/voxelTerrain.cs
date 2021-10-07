@@ -71,6 +71,7 @@ foreach(var cnk in all){Debug.Log("destroy terrain chunk");
 cnk.mC.backgroundData.Dispose();
 cnk.mC.foregroundData.Dispose();
 }
+marchingCubesMultithreaded.tasksBusyQueue.Dispose();
 edits.backgroundData.Dispose();
 edits.foregroundData.Dispose();
 biome.Dispose();
@@ -82,7 +83,7 @@ foreach(var cnk in all){cnk.Prepare();}
 marchingCubesMultithreaded.Stop=false;for(int i=0;i<marchingCubesThreads.Length;++i){marchingCubesThreads[i]=new marchingCubesMultithreaded();}
 editingMultithreaded.Stop=false;editsThread=new editingMultithreaded();
 }
-internal static bool navMeshDirty;
+internal static bool navMeshDirty;static float navMeshBuildInterval=10f;static float navMeshBuiltTimer;
 internal static AsyncOperation[]navMeshAsyncOperation;
 internal static readonly Dictionary<GameObject,NavMeshBuildSource>navMeshSources=new Dictionary<GameObject,NavMeshBuildSource>();static readonly List<NavMeshBuildSource>sources=new List<NavMeshBuildSource>();
 internal static readonly Dictionary<GameObject,NavMeshBuildMarkup>navMeshMarkups=new Dictionary<GameObject,NavMeshBuildMarkup>();static readonly List<NavMeshBuildMarkup>markups=new List<NavMeshBuildMarkup>();
@@ -175,13 +176,16 @@ if(cnk.expropriated!=null){pool.Remove(cnk.expropriated);cnk.expropriated=(null)
 _skip:{}
 if(iCoord.x==0){break;}}}
 if(iCoord.y==0){break;}}}
+navMeshDirty=true;
 }
 if(DEBUG_BAKE_NAV_MESH){DEBUG_BAKE_NAV_MESH=false;
 navMeshDirty=true;
 }
-if(navMeshDirty){Debug.Log("navMeshDirty=="+navMeshDirty);
+if(navMeshBuiltTimer>0){navMeshBuiltTimer-=Time.deltaTime;}
+if(navMeshDirty){//Debug.Log("navMeshDirty=="+navMeshDirty);
 if(navMeshAsyncOperation.All(o=>o==null||o.isDone)){
 navMeshDirty=false;
+navMeshBuiltTimer=navMeshBuildInterval;
 sources.Clear();sources.AddRange(navMeshSources.Values);
 markups.Clear();markups.AddRange(navMeshMarkups.Values);
 NavMeshBuilder.CollectSources(null,navMeshLayers,NavMeshCollectGeometry.PhysicsColliders,0,markups,sources);
