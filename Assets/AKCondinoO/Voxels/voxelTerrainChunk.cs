@@ -2,6 +2,7 @@ using MessagePack;
 using Newtonsoft.Json;
 using paulbourke.MarchingCubes;
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.IO;
@@ -60,6 +61,7 @@ overrideArea=false,
 ignoreFromBuild=false,
 };
 Prepare();
+waitUntilMeshBuilt=new WaitUntil(()=>plantingPending&&!meshDirty);
 }
 internal bool isPrepared;
 internal void Prepare(){//Debug.Log("Prepare");
@@ -124,10 +126,28 @@ cnkRgn=cCoordTocnkRgn(cCoord);worldBounds.center=transform.position=new Vector3(
 cnkIdx=cnkIdx1;
 meshBuildRequested=true;
 meshDirty=true;
+plantingPending=true;
 }
 public void OnEdited(){Debug.Log("OnEdited()");
 meshBuildRequested=true;
 meshDirty=true;
+}
+bool plantingPending;WaitUntil waitUntilMeshBuilt;
+Coroutine planting;IEnumerator Planting(){
+Loop:{}yield return waitUntilMeshBuilt;plantingPending=false;
+goto Loop;}
+internal readonly plants nature=new plants();
+internal class plants:backgroundObject{
+}
+internal class plantsMultithreaded:baseMultithreaded<plants>{
+protected override void Renew(plants next){
+}
+protected override void Release(){
+}
+protected override void Cleanup(){
+}
+protected override void Execute(){
+}
 }
 bool baking;JobHandle bakingHandle;BakerJob bakeJob;struct BakerJob:IJob{public int meshId;public void Execute(){Physics.BakeMesh(meshId,false);}}
 internal readonly marchingCubes mC=new marchingCubes();

@@ -1,3 +1,4 @@
+using AKCondinoO.Plants;
 using LibNoise;
 using LibNoise.Generator;
 using LibNoise.Operator;
@@ -303,6 +304,12 @@ protected virtual materialId material(double density,Vector3 noiseInput,material
 if(mCache!=null&&mCache[0][oftIdx][noiseIndex]!=0){return mCache[0][oftIdx][noiseIndex];}
 m=materialIdPicking[ground(noiseInput)];
 return mCache!=null?mCache[0][oftIdx][noiseIndex]=m:m;}
+}
+internal static readonly Dictionary<Type,plantData>plantsData=new Dictionary<Type,plantData>{
+{typeof(Cnidoscolus_quercifolius),new plantData{picking=new int[1]{1,},}},
+};
+internal class plantData{
+internal int[]picking;
 }
 internal static class atlasHelper{
 internal static Material material{get;private set;}

@@ -12,7 +12,7 @@ GameObject:
   - component: {fileID: 2431623756399664300}
   - component: {fileID: 2431623756399664303}
   - component: {fileID: 2431623756399664298}
-  m_Layer: 0
+  m_Layer: 7
   m_Name: simObject
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -45,6 +45,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: bd6183e846eb6604581052701185ae1b, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  DEBUG_UNLOAD: 0
+  DEBUG_UNPLACE: 0
 --- !u!114 &2431623756399664303
 MonoBehaviour:
   m_ObjectHideFlags: 0
