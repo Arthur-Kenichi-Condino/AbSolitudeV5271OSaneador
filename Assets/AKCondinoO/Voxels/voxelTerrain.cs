@@ -144,7 +144,7 @@ if(edits.requests.Count>0){Debug.Log("process edits.requests");
 editingMultithreaded.Schedule(edits);
 }
 }
-foreach(var movement in bounds){if(movement.Value==null)continue;var moved=movement.Value;Vector2Int bCoord_Pre=moved.Value.cCoord_Pre;Vector2Int bCoord=moved.Value.cCoord;
+if(planting.Count==0)foreach(var movement in bounds){if(movement.Value==null)continue;var moved=movement.Value;Vector2Int bCoord_Pre=moved.Value.cCoord_Pre;Vector2Int bCoord=moved.Value.cCoord;
 for(Vector2Int eCoord=new Vector2Int(),cCoord1=new Vector2Int();eCoord.y<=expropriationDistance.y;eCoord.y++){for(cCoord1.y=-eCoord.y+bCoord_Pre.y;cCoord1.y<=eCoord.y+bCoord_Pre.y;cCoord1.y+=eCoord.y*2){
 for(           eCoord.x=0                                      ;eCoord.x<=expropriationDistance.x;eCoord.x++){for(cCoord1.x=-eCoord.x+bCoord_Pre.x;cCoord1.x<=eCoord.x+bCoord_Pre.x;cCoord1.x+=eCoord.x*2){
 if(Math.Abs(cCoord1.x)>=MaxcCoordx||
@@ -198,8 +198,8 @@ navMeshAsyncOperation[i++]=b.Key.BuildNavMesh(sources);
 }
 }
 static readonly Dictionary<int,voxelTerrainChunk>planting=new Dictionary<int,voxelTerrainChunk>();
-internal static void OnStoppedPlanting(voxelTerrainChunk cnk){
-if(cnk.cnkIdx.HasValue){planting.Remove(cnk.cnkIdx.Value);}
+internal static void OnStoppedPlanting(int?cnkIdx){
+if(cnkIdx.HasValue){planting.Remove(cnkIdx.Value);}
 }
 internal static void OnPlantingStarted(voxelTerrainChunk cnk){
 planting.Add(cnk.cnkIdx.Value,cnk);

@@ -41,6 +41,7 @@ new VertexAttributeDescriptor(VertexAttribute.TexCoord3,VertexAttributeFormat.Fl
 internal new MeshRenderer renderer;
 internal new MeshCollider collider;
 void Awake(){
+waitUntilMeshBuilt=new WaitUntil(()=>plantingPending&&!meshDirty);
 //Debug.Log("ready components",this);
 network=GetComponent<NetworkObject>();
 mesh=new Mesh(){bounds=worldBounds=new Bounds(Vector3.zero,new Vector3(Width,Height,Depth))};GetComponent<MeshFilter>().mesh=mesh;
@@ -61,14 +62,13 @@ overrideArea=false,
 ignoreFromBuild=false,
 };
 Prepare();
-waitUntilMeshBuilt=new WaitUntil(()=>plantingPending&&!meshDirty);
 }
 internal bool isPrepared;
 internal void Dispose(){//Debug.Log("Dispose");
 if(isPrepared){
 isPrepared=false;
-StopCoroutine(planting);
-OnStoppedPlanting(this);
+if(this!=null&&gameObject!=null){if(planting!=null)StopCoroutine(planting);}planting=null;
+OnStoppedPlanting(cnkIdx);
 bakingHandle.Complete();
 mC.OnStop();/*  :mC has invalid data now:  */if(meshDirty){meshBuildRequested=true;marchingCubesRunning=false;baking=false;}
 }
@@ -139,7 +139,7 @@ bool plantingPending;WaitUntil waitUntilMeshBuilt;
 Coroutine planting;IEnumerator Planting(){
 Loop:{}yield return waitUntilMeshBuilt;Debug.Log("Planting()");
 OnPlantingStarted(this);
-OnStoppedPlanting(this);
+OnStoppedPlanting(cnkIdx);
 plantingPending=false;
 goto Loop;}
 internal readonly plants nature=new plants();
