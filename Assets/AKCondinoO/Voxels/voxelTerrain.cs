@@ -72,7 +72,7 @@ foreach(var cnk in all){Debug.Log("destroy terrain chunk");
 cnk.mC.backgroundData.Dispose();
 cnk.mC.foregroundData.Dispose();
 }
-marchingCubesMultithreaded.tasksBusyQueue.Dispose();
+tasksBusyQueue.Dispose();
 edits.backgroundData.Dispose();
 edits.foregroundData.Dispose();
 biome.Dispose();
@@ -196,6 +196,13 @@ navMeshAsyncOperation[i++]=b.Key.BuildNavMesh(sources);
 }
 }
 }
+}
+static readonly Dictionary<int,voxelTerrainChunk>planting=new Dictionary<int,voxelTerrainChunk>();
+internal static void OnStoppedPlanting(voxelTerrainChunk cnk){
+if(cnk.cnkIdx.HasValue){planting.Remove(cnk.cnkIdx.Value);}
+}
+internal static void OnPlantingStarted(voxelTerrainChunk cnk){
+planting.Add(cnk.cnkIdx.Value,cnk);
 }
 internal static void OnPlayerDisconnected(UNetPrefab player){Debug.Log("OnPlayerDisconnected:");
 var bCoord=vecPosTocCoord(player.transform.position);

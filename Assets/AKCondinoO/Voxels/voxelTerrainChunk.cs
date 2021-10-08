@@ -64,17 +64,20 @@ Prepare();
 waitUntilMeshBuilt=new WaitUntil(()=>plantingPending&&!meshDirty);
 }
 internal bool isPrepared;
+internal void Dispose(){//Debug.Log("Dispose");
+if(isPrepared){
+isPrepared=false;
+StopCoroutine(planting);
+OnStoppedPlanting(this);
+bakingHandle.Complete();
+mC.OnStop();/*  :mC has invalid data now:  */if(meshDirty){meshBuildRequested=true;marchingCubesRunning=false;baking=false;}
+}
+}
 internal void Prepare(){//Debug.Log("Prepare");
 if(!isPrepared){
 isPrepared=true;
 mC.Assign(toChunk:this);
-}
-}
-internal void Dispose(){//Debug.Log("Dispose");
-if(isPrepared){
-isPrepared=false;
-bakingHandle.Complete();
-mC.OnStop();/*  :mC has invalid data now:  */if(meshDirty){meshBuildRequested=true;marchingCubesRunning=false;baking=false;}
+planting=StartCoroutine(Planting());
 }
 }
 internal bool meshDirty;
@@ -134,7 +137,10 @@ meshDirty=true;
 }
 bool plantingPending;WaitUntil waitUntilMeshBuilt;
 Coroutine planting;IEnumerator Planting(){
-Loop:{}yield return waitUntilMeshBuilt;plantingPending=false;
+Loop:{}yield return waitUntilMeshBuilt;Debug.Log("Planting()");
+OnPlantingStarted(this);
+OnStoppedPlanting(this);
+plantingPending=false;
 goto Loop;}
 internal readonly plants nature=new plants();
 internal class plants:backgroundObject{
