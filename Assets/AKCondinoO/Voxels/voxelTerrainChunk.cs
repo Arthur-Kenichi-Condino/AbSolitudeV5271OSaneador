@@ -41,7 +41,6 @@ new VertexAttributeDescriptor(VertexAttribute.TexCoord3,VertexAttributeFormat.Fl
 internal new MeshRenderer renderer;
 internal new MeshCollider collider;
 void Awake(){
-waitUntilMeshBuilt=new WaitUntil(()=>plantingPending&&!meshDirty);
 //Debug.Log("ready components",this);
 network=GetComponent<NetworkObject>();
 mesh=new Mesh(){bounds=worldBounds=new Bounds(Vector3.zero,new Vector3(Width,Height,Depth))};GetComponent<MeshFilter>().mesh=mesh;
@@ -67,8 +66,9 @@ internal bool isPrepared;
 internal void Dispose(){//Debug.Log("Dispose");
 if(isPrepared){
 isPrepared=false;
-if(this!=null&&gameObject!=null){if(planting!=null)StopCoroutine(planting);}planting=null;
+if(this!=null&&gameObject!=null){if(eg.planting!=null)StopCoroutine(eg.planting);}eg.planting=null;
 OnStoppedPlanting(cnkIdx);
+eg.OnStop();
 bakingHandle.Complete();
 mC.OnStop();/*  :mC has invalid data now:  */if(meshDirty){meshBuildRequested=true;marchingCubesRunning=false;baking=false;}
 }
@@ -77,7 +77,8 @@ internal void Prepare(){//Debug.Log("Prepare");
 if(!isPrepared){
 isPrepared=true;
 mC.Assign(toChunk:this);
-planting=StartCoroutine(Planting());
+eg.Assign(toChunk:this);
+eg.planting=StartCoroutine(eg.Planting());
 }
 }
 internal bool meshDirty;
@@ -129,30 +130,49 @@ cnkRgn=cCoordTocnkRgn(cCoord);worldBounds.center=transform.position=new Vector3(
 cnkIdx=cnkIdx1;
 meshBuildRequested=true;
 meshDirty=true;
-plantingPending=true;
+eg.plantingPending=true;
 }
 public void OnEdited(){Debug.Log("OnEdited()");
 meshBuildRequested=true;
 meshDirty=true;
 }
-bool plantingPending;WaitUntil waitUntilMeshBuilt;
-Coroutine planting;IEnumerator Planting(){
+internal readonly plants eg=new plants();
+internal class plants:backgroundObject{
+voxelTerrainChunk cnk;
+internal bool plantingPending;WaitUntil waitUntilMeshBuilt;
+internal Coroutine planting;internal IEnumerator Planting(){
+waitUntilMeshBuilt=new WaitUntil(()=>plantingPending&&!cnk.meshDirty);
 Loop:{}yield return waitUntilMeshBuilt;Debug.Log("Planting()");
-OnPlantingStarted(this);
-OnStoppedPlanting(cnkIdx);
+OnPlantingStarted(cnk);
+OnStoppedPlanting(cnk.cnkIdx);
 plantingPending=false;
 goto Loop;}
-internal readonly plants nature=new plants();
-internal class plants:backgroundObject{
+internal NativeList<RaycastCommand>getGroundRays;
+internal NativeList<RaycastHit    >getGroundHits;internal readonly Dictionary<int,RaycastHit>gotGroundHits=new Dictionary<int,RaycastHit>(Width*Depth);
+internal void Assign(voxelTerrainChunk toChunk){cnk=toChunk;
+getGroundRays=new NativeList<RaycastCommand>(Width*Depth,Allocator.Persistent);
+getGroundHits=new NativeList<RaycastHit    >(Width*Depth,Allocator.Persistent);
+}
+internal void OnStop(){
+if(getGroundRays.IsCreated)getGroundRays.Dispose();
+if(getGroundHits.IsCreated)getGroundHits.Dispose();
+}
 }
 internal class plantsMultithreaded:baseMultithreaded<plants>{
+NativeList<RaycastCommand>getGroundRays;
+NativeList<RaycastHit    >getGroundHits;Dictionary<int,RaycastHit>gotGroundHits{get;set;}
 protected override void Renew(plants next){
+getGroundRays=next.getGroundRays;
+getGroundHits=next.getGroundHits;gotGroundHits=next.gotGroundHits;
 }
 protected override void Release(){
+/*                             */gotGroundHits=null;
 }
 protected override void Cleanup(){
 }
 protected override void Execute(){
+if(gotGroundHits.Count==0){Debug.Log("get ground hits");
+}
 }
 }
 bool baking;JobHandle bakingHandle;BakerJob bakeJob;struct BakerJob:IJob{public int meshId;public void Execute(){Physics.BakeMesh(meshId,false);}}

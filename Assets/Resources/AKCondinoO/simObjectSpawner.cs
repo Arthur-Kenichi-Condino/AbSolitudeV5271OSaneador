@@ -16,11 +16,11 @@ readonly persistentDataMultithreaded[]persistentDataThreads=new persistentDataMu
 void OnDisable(){Debug.Log("spawner disabled");
 if(instantiation!=null){Debug.Log("spawner disconnected");
 StopCoroutine(instantiation);instantiation=null;
-fileSearchMultithreaded.Stop=true;searchingThread?.Wait();fileSearchMultithreaded.Clear();
+    fileSearchMultithreaded.Stop=true;searchingThread?.Wait();fileSearchMultithreaded.Clear();
 List<ManualResetEvent>handles=new List<ManualResetEvent>();foreach(var sO in all){sO.OnExitSave(persistentDataThreads,handles);}foreach(var handle in handles)handle.WaitOne();
 persistentDataMultithreaded.Stop=true;for(int i=0;i<persistentDataThreads.Length;++i){persistentDataThreads[i]?.Wait();}persistentDataMultithreaded.Clear();
 ids.OnExitSave(idsThread);
-uniqueIdsMultithreaded.Stop=true;idsThread?.Wait();uniqueIdsMultithreaded.Clear();
+     uniqueIdsMultithreaded.Stop=true;      idsThread?.Wait(); uniqueIdsMultithreaded.Clear();
 }
 }
 void OnDestroy(){Debug.Log("on destroy sim object spawner");
@@ -58,11 +58,11 @@ if(!NetworkManager.Singleton.IsServer
  &&!NetworkManager.Singleton.IsClient){
 if(instantiation!=null){Debug.Log("spawner disconnected");
 StopCoroutine(instantiation);instantiation=null;
-fileSearchMultithreaded.Stop=true;searchingThread?.Wait();fileSearchMultithreaded.Clear();
+    fileSearchMultithreaded.Stop=true;searchingThread?.Wait();fileSearchMultithreaded.Clear();
 List<ManualResetEvent>handles=new List<ManualResetEvent>();foreach(var sO in all){sO.OnExitSave(persistentDataThreads,handles);}foreach(var handle in handles)handle.WaitOne();
 persistentDataMultithreaded.Stop=true;for(int i=0;i<persistentDataThreads.Length;++i){persistentDataThreads[i]?.Wait();}persistentDataMultithreaded.Clear();
 ids.OnExitSave(idsThread);
-uniqueIdsMultithreaded.Stop=true;idsThread?.Wait();uniqueIdsMultithreaded.Clear();
+     uniqueIdsMultithreaded.Stop=true;      idsThread?.Wait(); uniqueIdsMultithreaded.Clear();
 foreach(var sO in all){
 sO.fileData.backgroundData.Dispose();
 sO.fileData.foregroundData.Dispose();
@@ -74,10 +74,10 @@ foreach(var p in pool)p.Value.Clear();
 }
 if(NetworkManager.Singleton.IsServer){
 if(instantiation==null&&!string.IsNullOrEmpty(saveName)){Debug.Log("spawner connected");
-uniqueIdsMultithreaded.Stop=false;idsThread=new uniqueIdsMultithreaded();
+     uniqueIdsMultithreaded.Stop=false;      idsThread=new  uniqueIdsMultithreaded();
 ids.Init();
 instantiation=StartCoroutine(Instantiation());
-fileSearchMultithreaded.Stop=false;searchingThread=new fileSearchMultithreaded();
+    fileSearchMultithreaded.Stop=false;searchingThread=new fileSearchMultithreaded();
 persistentDataMultithreaded.Stop=false;for(int i=0;i<persistentDataThreads.Length;++i){persistentDataThreads[i]=new persistentDataMultithreaded();}
 }
 //Debug.Log("instantiating:"+instantiating);
@@ -93,7 +93,7 @@ loadingRequired=false;
 }
 }
 bool instantiating;WaitUntil waitUntilInstantiationRequested;WaitUntil waitUntilIdsSaved;WaitUntil waitUntilFilesSearched;
-internal static Coroutine instantiation;IEnumerator Instantiation(){
+internal static Coroutine instantiation;internal IEnumerator Instantiation(){
 Loop:{}yield return waitUntilInstantiationRequested;/*Debug.Log("loading ids");*/yield return waitUntilIdsSaved;yield return waitUntilFilesSearched;Debug.Log("begin instantiation");
 while(spawnerQueue.Count>0){var toSpawn=spawnerQueue.Dequeue();
 foreach(var at in toSpawn.at){

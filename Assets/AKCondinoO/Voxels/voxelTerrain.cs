@@ -62,8 +62,8 @@ internal static readonly Dictionary<UNetPrefab,(Vector2Int cCoord,Vector2Int cCo
 [SerializeField]internal voxelTerrainChunk prefab;internal static readonly Dictionary<int,voxelTerrainChunk>active=new Dictionary<int,voxelTerrainChunk>();internal static readonly List<voxelTerrainChunk>all=new List<voxelTerrainChunk>();internal static readonly LinkedList<voxelTerrainChunk>pool=new LinkedList<voxelTerrainChunk>();internal static int poolSize=0;
 readonly marchingCubesMultithreaded[]marchingCubesThreads=new marchingCubesMultithreaded[Environment.ProcessorCount];
 void OnDisable(){
-edits.OnExitSave(editsThread);
-editingMultithreaded.Stop=true;editsThread?.Wait();editingMultithreaded.Clear();
+      edits.OnExitSave(editsThread);
+      editingMultithreaded.Stop=true;editsThread?.Wait();editingMultithreaded.Clear();
 marchingCubesMultithreaded.Stop=true;for(int i=0;i<marchingCubesThreads.Length;++i){marchingCubesThreads[i]?.Wait();}marchingCubesMultithreaded.Clear();
 foreach(var cnk in all){cnk.Dispose();}
 }
@@ -82,7 +82,7 @@ SetLayerMasks();
 GetAtlasData(prefab.GetComponent<MeshRenderer>().sharedMaterial);
 foreach(var cnk in all){cnk.Prepare();}
 marchingCubesMultithreaded.Stop=false;for(int i=0;i<marchingCubesThreads.Length;++i){marchingCubesThreads[i]=new marchingCubesMultithreaded();}
-editingMultithreaded.Stop=false;editsThread=new editingMultithreaded();
+      editingMultithreaded.Stop=false;editsThread=new editingMultithreaded();
 }
 internal static bool navMeshDirty;static float navMeshBuildInterval=10f;static float navMeshBuiltTimer;
 internal static AsyncOperation[]navMeshAsyncOperation;
@@ -100,10 +100,10 @@ void Update(){
 if(!NetworkManager.Singleton.IsServer
  &&!NetworkManager.Singleton.IsClient){
 if(poolSize!=0){Debug.Log("terrain disconnected");
-edits.OnExitSave(editsThread);
-editingMultithreaded.Stop=true;editsThread?.Wait();editingMultithreaded.Clear();
+      edits.OnExitSave(editsThread);
+      editingMultithreaded.Stop=true;editsThread?.Wait();editingMultithreaded.Clear();
 marchingCubesMultithreaded.Stop=true;for(int i=0;i<marchingCubesThreads.Length;++i){marchingCubesThreads[i]?.Wait();}marchingCubesMultithreaded.Clear();
-edits.allChunksSyn.Clear();
+      edits.allChunksSyn.Clear();
 foreach(var cnk in all){cnk.Dispose();
 cnk.mC.backgroundData.Dispose();
 cnk.mC.foregroundData.Dispose();
@@ -123,10 +123,10 @@ int requiredPoolSize=(maxConnections=NetworkManager.Singleton.GetComponent<UNetT
 if(navMeshAsyncOperation==null)navMeshAsyncOperation=new AsyncOperation[maxConnections];else if(navMeshAsyncOperation.Length<maxConnections)Array.Resize(ref navMeshAsyncOperation,maxConnections);
 for(int i=poolSize;i<requiredPoolSize;poolSize=++i){
 voxelTerrainChunk cnk;all.Add(cnk=Instantiate(prefab));cnk.expropriated=pool.AddLast(cnk);cnk.network.Spawn();
-edits.allChunksSyn.Add(cnk.mC.syn);
+      edits.allChunksSyn.Add(cnk.mC.syn);
 }
 marchingCubesMultithreaded.Stop=false;for(int i=0;i<marchingCubesThreads.Length;++i){marchingCubesThreads[i]=new marchingCubesMultithreaded();}
-editingMultithreaded.Stop=false;editsThread=new editingMultithreaded();
+      editingMultithreaded.Stop=false;editsThread=new editingMultithreaded();
 }
 if(DEBUG_EDIT){
    DEBUG_EDIT=false;
