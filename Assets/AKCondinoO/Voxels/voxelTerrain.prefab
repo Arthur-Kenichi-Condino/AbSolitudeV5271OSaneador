@@ -10,7 +10,7 @@ GameObject:
   m_Component:
   - component: {fileID: 2874694759777622589}
   - component: {fileID: 7163345969815885522}
-  m_Layer: 0
+  m_Layer: 8
   m_Name: voxelTerrain
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -51,3 +51,4 @@ MonoBehaviour:
   DEBUG_EDIT_DENSITY: 100
   DEBUG_EDIT_MATERIAL_ID: 2
   DEBUG_EDIT_SMOOTHNESS: 5
+  DEBUG_BAKE_NAV_MESH: 0

@@ -15,7 +15,7 @@ GameObject:
   - component: {fileID: -5668956202770844732}
   - component: {fileID: -8205257293025710265}
   - component: {fileID: -2247448630126564850}
-  m_Layer: 0
+  m_Layer: 8
   m_Name: voxelTerrainChunk
   m_TagString: Untagged
   m_Icon: {fileID: 0}

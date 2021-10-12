@@ -142,18 +142,22 @@ meshDirty=true;
 internal readonly plants eg=new plants();
 internal class plants:backgroundObject{
 voxelTerrainChunk cnk;
-internal bool plantingPending;WaitUntil waitUntilMeshBuilt;WaitUntil waitUntil_backgroundData;
+internal bool plantingPending;WaitUntil waitUntilMeshBuilt;WaitUntil waitUntil_backgroundData;WaitUntil waitUntil_doRaycastsHandle;
 internal Coroutine planting;internal IEnumerator Planting(){
 waitUntilMeshBuilt=new WaitUntil(()=>plantingPending&&!cnk.meshDirty);
 waitUntil_backgroundData=new WaitUntil(()=>backgroundData.WaitOne(0));
+waitUntil_doRaycastsHandle=new WaitUntil(()=>doRaycastsHandle.IsCompleted);yield return waitUntil_doRaycastsHandle;
 Loop:{}yield return waitUntilMeshBuilt;Debug.Log("Planting()");
 OnPlantingStarted(cnk);
 getGroundRays.Clear();
 getGroundHits.Clear();gotGroundHits.Clear();
 plantsMultithreaded.Schedule(this);yield return waitUntil_backgroundData;
+doRaycastsHandle=RaycastCommand.ScheduleBatch(getGroundRays,getGroundHits,1,default(JobHandle));
+yield return waitUntil_doRaycastsHandle;doRaycastsHandle.Complete();
 OnStoppedPlanting(cnk.cnkIdx);
 plantingPending=false;
 goto Loop;}
+JobHandle doRaycastsHandle;
 internal NativeList<RaycastCommand>getGroundRays;
 internal NativeList<RaycastHit    >getGroundHits;internal readonly Dictionary<int,RaycastHit>gotGroundHits=new Dictionary<int,RaycastHit>(Width*Depth);
 internal void Assign(voxelTerrainChunk toChunk){cnk=toChunk;
@@ -191,7 +195,12 @@ for(vCoord1.x=0             ;vCoord1.x<Width;vCoord1.x++){
 for(vCoord1.z=0             ;vCoord1.z<Depth;vCoord1.z++){
 Vector3Int noiseInput=vCoord1;noiseInput.x+=cnkRgn1.x;
                               noiseInput.z+=cnkRgn1.y;
-var plantData=biome.Egplant(noiseInput);if(plantData!=null){//Debug.Log("plantData:"+plantData);
+(Type plant,plantData data)?plantData=biome.Egplant(noiseInput);if(plantData!=null){//Debug.Log("plantData:"+plantData);
+Vector3 from=vCoord1;
+        from.x+=cnkRgn1.x-Width/2f;
+        from.z+=cnkRgn1.y-Depth/2f;
+getGroundRays.AddNoResize(new RaycastCommand(from,Vector3.down,Height,physHelper.voxelTerrain));
+getGroundHits.AddNoResize(new RaycastHit    ()                                                );
 }
 }
 }
