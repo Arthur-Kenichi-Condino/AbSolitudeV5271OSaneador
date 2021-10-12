@@ -191,8 +191,7 @@ for(vCoord1.x=0             ;vCoord1.x<Width;vCoord1.x++){
 for(vCoord1.z=0             ;vCoord1.z<Depth;vCoord1.z++){
 Vector3Int noiseInput=vCoord1;noiseInput.x+=cnkRgn1.x;
                               noiseInput.z+=cnkRgn1.y;
-var plantData=biome.Egplant(noiseInput);if(plantData!=null){
-//Debug.Log("plantData:"+plantData);
+var plantData=biome.Egplant(noiseInput);if(plantData!=null){//Debug.Log("plantData:"+plantData);
 }
 }
 }
