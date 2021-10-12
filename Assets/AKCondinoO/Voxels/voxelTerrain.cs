@@ -61,9 +61,11 @@ internal static void ValidateCoordAxis(ref int axis,ref int coord,int axisLength
 internal static readonly Dictionary<UNetPrefab,(Vector2Int cCoord,Vector2Int cCoord_Pre)?>bounds=new Dictionary<UNetPrefab,(Vector2Int,Vector2Int)?>();
 [SerializeField]internal voxelTerrainChunk prefab;internal static readonly Dictionary<int,voxelTerrainChunk>active=new Dictionary<int,voxelTerrainChunk>();internal static readonly List<voxelTerrainChunk>all=new List<voxelTerrainChunk>();internal static readonly LinkedList<voxelTerrainChunk>pool=new LinkedList<voxelTerrainChunk>();internal static int poolSize=0;
 readonly marchingCubesMultithreaded[]marchingCubesThreads=new marchingCubesMultithreaded[Environment.ProcessorCount];
+readonly        plantsMultithreaded[]     plantingThreads=new        plantsMultithreaded[Environment.ProcessorCount];
 void OnDisable(){
       edits.OnExitSave(editsThread);
       editingMultithreaded.Stop=true;editsThread?.Wait();editingMultithreaded.Clear();
+       plantsMultithreaded.Stop=true;for(int i=0;i<     plantingThreads.Length;++i){     plantingThreads[i]?.Wait();}       plantsMultithreaded.Clear();
 marchingCubesMultithreaded.Stop=true;for(int i=0;i<marchingCubesThreads.Length;++i){marchingCubesThreads[i]?.Wait();}marchingCubesMultithreaded.Clear();
 foreach(var cnk in all){cnk.Dispose();}
 }
@@ -82,6 +84,7 @@ SetLayerMasks();
 GetAtlasData(prefab.GetComponent<MeshRenderer>().sharedMaterial);
 foreach(var cnk in all){cnk.Prepare();}
 marchingCubesMultithreaded.Stop=false;for(int i=0;i<marchingCubesThreads.Length;++i){marchingCubesThreads[i]=new marchingCubesMultithreaded();}
+       plantsMultithreaded.Stop=false;for(int i=0;i<     plantingThreads.Length;++i){     plantingThreads[i]=new        plantsMultithreaded();}
       editingMultithreaded.Stop=false;editsThread=new editingMultithreaded();
 }
 internal static bool navMeshDirty;static float navMeshBuildInterval=10f;static float navMeshBuiltTimer;
@@ -102,6 +105,7 @@ if(!NetworkManager.Singleton.IsServer
 if(poolSize!=0){Debug.Log("terrain disconnected");
       edits.OnExitSave(editsThread);
       editingMultithreaded.Stop=true;editsThread?.Wait();editingMultithreaded.Clear();
+       plantsMultithreaded.Stop=true;for(int i=0;i<     plantingThreads.Length;++i){     plantingThreads[i]?.Wait();}       plantsMultithreaded.Clear();
 marchingCubesMultithreaded.Stop=true;for(int i=0;i<marchingCubesThreads.Length;++i){marchingCubesThreads[i]?.Wait();}marchingCubesMultithreaded.Clear();
       edits.allChunksSyn.Clear();
 foreach(var cnk in all){cnk.Dispose();
@@ -126,6 +130,7 @@ voxelTerrainChunk cnk;all.Add(cnk=Instantiate(prefab));cnk.expropriated=pool.Add
       edits.allChunksSyn.Add(cnk.mC.syn);
 }
 marchingCubesMultithreaded.Stop=false;for(int i=0;i<marchingCubesThreads.Length;++i){marchingCubesThreads[i]=new marchingCubesMultithreaded();}
+       plantsMultithreaded.Stop=false;for(int i=0;i<     plantingThreads.Length;++i){     plantingThreads[i]=new        plantsMultithreaded();}
       editingMultithreaded.Stop=false;editsThread=new editingMultithreaded();
 }
 if(DEBUG_EDIT){
@@ -311,12 +316,20 @@ protected virtual materialId material(double density,Vector3 noiseInput,material
 if(mCache!=null&&mCache[0][oftIdx][noiseIndex]!=0){return mCache[0][oftIdx][noiseIndex];}
 m=materialIdPicking[ground(noiseInput)];
 return mCache!=null?mCache[0][oftIdx][noiseIndex]=m:m;}
+readonly protected Dictionary<int,Type[]>plantsPicking=new Dictionary<int,Type[]>{
+{1,new Type[]{typeof(Cnidoscolus_quercifolius),}},
+};
+internal virtual(Type plant,plantData data)?Egplant(Vector3Int noiseInputRounded){
+                                            Vector3 noiseInput=noiseInputRounded+deround;
+if(plantsPicking.TryGetValue(ground(noiseInput),out Type[]picked)){foreach(Type plant in picked){plantData data=plantsData[plant];
+return(plant,data);
+}}
+return null;}
 }
 internal static readonly Dictionary<Type,plantData>plantsData=new Dictionary<Type,plantData>{
-{typeof(Cnidoscolus_quercifolius),new plantData{picking=new int[1]{1,},}},
+{typeof(Cnidoscolus_quercifolius),new plantData{}},
 };
 internal class plantData{
-internal int[]picking;
 }
 internal static class atlasHelper{
 internal static Material material{get;private set;}

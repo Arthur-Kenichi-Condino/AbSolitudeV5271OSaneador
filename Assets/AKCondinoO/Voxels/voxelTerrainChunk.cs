@@ -96,6 +96,9 @@ renderer.enabled=true;
 collider.enabled=true;
 collider.sharedMesh=null;
 collider.sharedMesh=mesh;
+eg.cCoord_bg=cCoord;
+eg.cnkRgn_bg=cnkRgn;
+eg.cnkIdx_bg=cnkIdx.Value;
 meshDirty=false;
 navMeshDirty=true;
 }
@@ -139,11 +142,15 @@ meshDirty=true;
 internal readonly plants eg=new plants();
 internal class plants:backgroundObject{
 voxelTerrainChunk cnk;
-internal bool plantingPending;WaitUntil waitUntilMeshBuilt;
+internal bool plantingPending;WaitUntil waitUntilMeshBuilt;WaitUntil waitUntil_backgroundData;
 internal Coroutine planting;internal IEnumerator Planting(){
 waitUntilMeshBuilt=new WaitUntil(()=>plantingPending&&!cnk.meshDirty);
+waitUntil_backgroundData=new WaitUntil(()=>backgroundData.WaitOne(0));
 Loop:{}yield return waitUntilMeshBuilt;Debug.Log("Planting()");
 OnPlantingStarted(cnk);
+getGroundRays.Clear();
+getGroundHits.Clear();gotGroundHits.Clear();
+plantsMultithreaded.Schedule(this);yield return waitUntil_backgroundData;
 OnStoppedPlanting(cnk.cnkIdx);
 plantingPending=false;
 goto Loop;}
@@ -157,10 +164,15 @@ internal void OnStop(){
 if(getGroundRays.IsCreated)getGroundRays.Dispose();
 if(getGroundHits.IsCreated)getGroundHits.Dispose();
 }
+internal Vector2Int cCoord_bg;
+internal Vector2Int cnkRgn_bg;
+internal        int cnkIdx_bg;
 }
 internal class plantsMultithreaded:baseMultithreaded<plants>{
 NativeList<RaycastCommand>getGroundRays;
 NativeList<RaycastHit    >getGroundHits;Dictionary<int,RaycastHit>gotGroundHits{get;set;}
+Vector2Int cCoord1{get{return current.cCoord_bg;}}
+Vector2Int cnkRgn1{get{return current.cnkRgn_bg;}}
 protected override void Renew(plants next){
 getGroundRays=next.getGroundRays;
 getGroundHits=next.getGroundHits;gotGroundHits=next.gotGroundHits;
@@ -169,9 +181,21 @@ protected override void Release(){
 /*                             */gotGroundHits=null;
 }
 protected override void Cleanup(){
+spacing.Clear();
 }
+readonly Dictionary<Type,Vector2Int>spacing=new Dictionary<Type,Vector2Int>();
 protected override void Execute(){
-if(gotGroundHits.Count==0){Debug.Log("get ground hits");
+if(gotGroundHits.Count==0){Debug.Log("get rays to ground");
+Vector3Int vCoord1=new Vector3Int(0,Height/2-1,0);
+for(vCoord1.x=0             ;vCoord1.x<Width;vCoord1.x++){
+for(vCoord1.z=0             ;vCoord1.z<Depth;vCoord1.z++){
+Vector3Int noiseInput=vCoord1;noiseInput.x+=cnkRgn1.x;
+                              noiseInput.z+=cnkRgn1.y;
+var plantData=biome.Egplant(noiseInput);if(plantData!=null){
+//Debug.Log("plantData:"+plantData);
+}
+}
+}
 }
 }
 }
