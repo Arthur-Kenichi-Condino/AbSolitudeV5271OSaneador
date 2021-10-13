@@ -149,16 +149,21 @@ waitUntil_backgroundData=new WaitUntil(()=>backgroundData.WaitOne(0));
 waitUntil_doRaycastsHandle=new WaitUntil(()=>doRaycastsHandle.IsCompleted);yield return waitUntil_doRaycastsHandle;
 Loop:{}yield return waitUntilMeshBuilt;Debug.Log("Planting()");
 OnPlantingStarted(cnk);
-getGroundRays.Clear();
+getGroundRays.Clear();gotGroundRays.Clear();
 getGroundHits.Clear();gotGroundHits.Clear();
 plantsMultithreaded.Schedule(this);yield return waitUntil_backgroundData;
 doRaycastsHandle=RaycastCommand.ScheduleBatch(getGroundRays,getGroundHits,1,default(JobHandle));
-yield return waitUntil_doRaycastsHandle;doRaycastsHandle.Complete();
+yield return waitUntil_doRaycastsHandle;doRaycastsHandle.Complete();//debug draw:for(int j=0;j<getGroundHits.Length;++j){if(getGroundHits[j].collider!=null){Debug.DrawLine(getGroundRays[j].from,getGroundHits[j].point,Color.white,5f);}}
+Vector3Int vCoord1=new Vector3Int(0,0,0);int i=0;
+for(vCoord1.x=0             ;vCoord1.x<Width;vCoord1.x++){
+for(vCoord1.z=0             ;vCoord1.z<Depth;vCoord1.z++){
+}
+}
 OnStoppedPlanting(cnk.cnkIdx);
 plantingPending=false;
 goto Loop;}
 JobHandle doRaycastsHandle;
-internal NativeList<RaycastCommand>getGroundRays;
+internal NativeList<RaycastCommand>getGroundRays;internal readonly        List<(int x,int z)>gotGroundRays=new List<(int,int)>();
 internal NativeList<RaycastHit    >getGroundHits;internal readonly Dictionary<int,RaycastHit>gotGroundHits=new Dictionary<int,RaycastHit>(Width*Depth);
 internal void Assign(voxelTerrainChunk toChunk){cnk=toChunk;
 getGroundRays=new NativeList<RaycastCommand>(Width*Depth,Allocator.Persistent);
@@ -173,15 +178,16 @@ internal Vector2Int cnkRgn_bg;
 internal        int cnkIdx_bg;
 }
 internal class plantsMultithreaded:baseMultithreaded<plants>{
-NativeList<RaycastCommand>getGroundRays;
+NativeList<RaycastCommand>getGroundRays;       List<(int x,int z)>gotGroundRays{get;set;}
 NativeList<RaycastHit    >getGroundHits;Dictionary<int,RaycastHit>gotGroundHits{get;set;}
 Vector2Int cCoord1{get{return current.cCoord_bg;}}
 Vector2Int cnkRgn1{get{return current.cnkRgn_bg;}}
 protected override void Renew(plants next){
-getGroundRays=next.getGroundRays;
+getGroundRays=next.getGroundRays;gotGroundRays=next.gotGroundRays;
 getGroundHits=next.getGroundHits;gotGroundHits=next.gotGroundHits;
 }
 protected override void Release(){
+/*                             */gotGroundRays=null;
 /*                             */gotGroundHits=null;
 }
 protected override void Cleanup(){
@@ -199,7 +205,7 @@ Vector3Int noiseInput=vCoord1;noiseInput.x+=cnkRgn1.x;
 Vector3 from=vCoord1;
         from.x+=cnkRgn1.x-Width/2f;
         from.z+=cnkRgn1.y-Depth/2f;
-getGroundRays.AddNoResize(new RaycastCommand(from,Vector3.down,Height,physHelper.voxelTerrain));
+getGroundRays.AddNoResize(new RaycastCommand(from,Vector3.down,Height,physHelper.voxelTerrain));gotGroundRays.Add((vCoord1.x,vCoord1.z));
 getGroundHits.AddNoResize(new RaycastHit    ()                                                );
 }
 }
