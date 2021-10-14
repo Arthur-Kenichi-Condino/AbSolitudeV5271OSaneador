@@ -106,7 +106,7 @@ foreach(var fileIndex in searching.foundFileIndexes){
 if(active.ContainsKey((fileIndex.type,fileIndex.id))){/*Debug.Log("sim object already loaded");*/continue;}
 //Debug.Log("place sim object for file found:"+fileIndex);
 Place(Vector3.zero,Vector3.zero,Vector3.one,fileIndex.type,(fileIndex.id,fileIndex.cnkIdx));
-yield return null;
+//yield return null;
 }
 instantiating=false;
 goto Loop;}
