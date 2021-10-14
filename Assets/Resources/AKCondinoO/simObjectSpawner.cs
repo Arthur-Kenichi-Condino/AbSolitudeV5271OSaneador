@@ -74,6 +74,7 @@ foreach(var p in pool)p.Value.Clear();
 }
 if(NetworkManager.Singleton.IsServer){
 if(instantiation==null&&!string.IsNullOrEmpty(saveName)){Debug.Log("spawner connected");
+spawnerQueue.Clear();
      uniqueIdsMultithreaded.Stop=false;      idsThread=new  uniqueIdsMultithreaded();
 ids.Init();
 instantiation=StartCoroutine(Instantiation());
@@ -99,9 +100,10 @@ while(spawnerQueue.Count>0){var toSpawn=spawnerQueue.Dequeue();
 foreach(var at in toSpawn.at){
 Place(at.position,at.rotation,at.scale,at.type);
 }
+toSpawn.dequeued=true;
 }
 foreach(var fileIndex in searching.foundFileIndexes){
-if(active.ContainsKey((fileIndex.type,fileIndex.id))){Debug.Log("sim object already loaded");continue;}
+if(active.ContainsKey((fileIndex.type,fileIndex.id))){/*Debug.Log("sim object already loaded");*/continue;}
 Debug.Log("place sim object for file found:"+fileIndex);
 Place(Vector3.zero,Vector3.zero,Vector3.one,fileIndex.type,(fileIndex.id,fileIndex.cnkIdx));
 }

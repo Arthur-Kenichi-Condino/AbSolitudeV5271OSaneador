@@ -15,6 +15,7 @@ using UnityEngine;
 using UnityEngine.AI;
 using UnityEngine.Rendering;
 using static AKCondinoO.core;
+using static AKCondinoO.simObjectSpawner;
 using static AKCondinoO.Voxels.voxelTerrain;
 using static AKCondinoO.Voxels.voxelTerrain.atlasHelper;
 using static AKCondinoO.Voxels.voxelTerrainChunk.marchingCubes;
@@ -151,13 +152,24 @@ Loop:{}yield return waitUntilMeshBuilt;Debug.Log("Planting()");
 OnPlantingStarted(cnk);
 getGroundRays.Clear();gotGroundRays.Clear();
 getGroundHits.Clear();gotGroundHits.Clear();
+plantAt.Clear();
 plantsMultithreaded.Schedule(this);yield return waitUntil_backgroundData;
 doRaycastsHandle=RaycastCommand.ScheduleBatch(getGroundRays,getGroundHits,1,default(JobHandle));
-yield return waitUntil_doRaycastsHandle;doRaycastsHandle.Complete();//debug draw:for(int j=0;j<getGroundHits.Length;++j){if(getGroundHits[j].collider!=null){Debug.DrawLine(getGroundRays[j].from,getGroundHits[j].point,Color.white,5f);}}
+yield return waitUntil_doRaycastsHandle;doRaycastsHandle.Complete();for(int j=0;j<getGroundHits.Length;++j){if(getGroundHits[j].collider!=null){Debug.DrawRay(getGroundHits[j].point,(getGroundRays[j].from-getGroundHits[j].point).normalized,Color.white,5f);}}
 Vector3Int vCoord1=new Vector3Int(0,0,0);int i=0;
 for(vCoord1.x=0             ;vCoord1.x<Width;vCoord1.x++){
 for(vCoord1.z=0             ;vCoord1.z<Depth;vCoord1.z++){
+if(gotGroundRays.Contains((vCoord1.x,vCoord1.z))){var hit=getGroundHits[i++];if(hit.collider!=null){int index=vCoord1.z+vCoord1.x*Depth;
+gotGroundHits.Add(index,hit);
+}}
 }
+}
+if(gotGroundHits.Count>0){
+toSpawn.at.Clear();
+toSpawn.dequeued=false;
+plantsMultithreaded.Schedule(this);yield return waitUntil_backgroundData;
+spawnerQueue.Enqueue(toSpawn);
+//instantiation
 }
 OnStoppedPlanting(cnk.cnkIdx);
 plantingPending=false;
@@ -165,6 +177,8 @@ goto Loop;}
 JobHandle doRaycastsHandle;
 internal NativeList<RaycastCommand>getGroundRays;internal readonly        List<(int x,int z)>gotGroundRays=new List<(int,int)>();
 internal NativeList<RaycastHit    >getGroundHits;internal readonly Dictionary<int,RaycastHit>gotGroundHits=new Dictionary<int,RaycastHit>(Width*Depth);
+internal readonly Dictionary<(int x,int z),(Type plant,plantData data)>plantAt=new Dictionary<(int,int),(Type,plantData)>();
+internal readonly spawnData toSpawn=new spawnData();
 internal void Assign(voxelTerrainChunk toChunk){cnk=toChunk;
 getGroundRays=new NativeList<RaycastCommand>(Width*Depth,Allocator.Persistent);
 getGroundHits=new NativeList<RaycastHit    >(Width*Depth,Allocator.Persistent);
@@ -180,22 +194,37 @@ internal        int cnkIdx_bg;
 internal class plantsMultithreaded:baseMultithreaded<plants>{
 NativeList<RaycastCommand>getGroundRays;       List<(int x,int z)>gotGroundRays{get;set;}
 NativeList<RaycastHit    >getGroundHits;Dictionary<int,RaycastHit>gotGroundHits{get;set;}
-Vector2Int cCoord1{get{return current.cCoord_bg;}}
+Dictionary<(int x,int z),(Type plant,plantData data)>plantAt{get;set;}
+spawnData toSpawn{get;set;}
 Vector2Int cnkRgn1{get{return current.cnkRgn_bg;}}
 protected override void Renew(plants next){
 getGroundRays=next.getGroundRays;gotGroundRays=next.gotGroundRays;
 getGroundHits=next.getGroundHits;gotGroundHits=next.gotGroundHits;
+plantAt=next.plantAt;
+toSpawn=next.toSpawn;
 }
 protected override void Release(){
 /*                             */gotGroundRays=null;
 /*                             */gotGroundHits=null;
+plantAt=null;
+toSpawn=null;
 }
 protected override void Cleanup(){
-spacing.Clear();
+spacingAllTypes=Vector2Int.zero;spacingOwnTypeOnly.Clear();spacingByLayer.Clear();
 }
-readonly Dictionary<Type,Vector2Int>spacing=new Dictionary<Type,Vector2Int>();
+Vector2Int spacingAllTypes;readonly Dictionary<Type,Vector2Int>spacingOwnTypeOnly=new Dictionary<Type,Vector2Int>();readonly Dictionary<int,Vector2Int>spacingByLayer=new Dictionary<int,Vector2Int>();
 protected override void Execute(){
-if(gotGroundHits.Count==0){Debug.Log("get rays to ground");
+if(gotGroundHits.Count>0){Debug.Log("got hits on ground");
+Vector3Int vCoord1=new Vector3Int(0,Height/2-1,0);int i=0;
+for(vCoord1.x=0             ;vCoord1.x<Width;vCoord1.x++){
+for(vCoord1.z=0             ;vCoord1.z<Depth;vCoord1.z++){int index=vCoord1.z+vCoord1.x*Depth;
+if(gotGroundHits.TryGetValue(index,out RaycastHit floor)){
+(Type plant,plantData data)plantData=plantAt[(vCoord1.x,vCoord1.z)];//Debug.Log("plantData:"+plantData);
+toSpawn.at.Add((floor.point,Vector3.zero,Vector3.one,plantData.plant));
+}
+}
+}
+}else if(gotGroundHits.Count==0){Debug.Log("get rays to ground");
 Vector3Int vCoord1=new Vector3Int(0,Height/2-1,0);
 for(vCoord1.x=0             ;vCoord1.x<Width;vCoord1.x++){
 for(vCoord1.z=0             ;vCoord1.z<Depth;vCoord1.z++){
@@ -207,6 +236,7 @@ Vector3 from=vCoord1;
         from.z+=cnkRgn1.y-Depth/2f;
 getGroundRays.AddNoResize(new RaycastCommand(from,Vector3.down,Height,physHelper.voxelTerrain));gotGroundRays.Add((vCoord1.x,vCoord1.z));
 getGroundHits.AddNoResize(new RaycastHit    ()                                                );
+plantAt[(vCoord1.x,vCoord1.z)]=plantData.Value;
 }
 }
 }
