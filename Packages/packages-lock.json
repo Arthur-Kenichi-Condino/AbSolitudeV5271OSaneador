@@ -1,5 +1,12 @@
 {
   "dependencies": {
+    "com.unity.autolod": {
+      "version": "https://github.com/Unity-Technologies/AutoLOD.git",
+      "depth": 0,
+      "source": "git",
+      "dependencies": {},
+      "hash": "9492bc0620ea02944745c41e1f51b241580e342c"
+    },
     "com.unity.burst": {
       "version": "1.5.4",
       "depth": 2,
@@ -143,6 +150,13 @@
         "com.unity.modules.ui": "1.0.0",
         "com.unity.modules.imgui": "1.0.0"
       }
+    },
+    "com.whinarn.unitymeshsimplifier": {
+      "version": "https://github.com/Whinarn/UnityMeshSimplifier.git",
+      "depth": 0,
+      "source": "git",
+      "dependencies": {},
+      "hash": "e27528b988c22c5f78e366f0c58ec68cc246a455"
     },
     "com.unity.modules.ai": {
       "version": "1.0.0",

@@ -168,7 +168,7 @@ if(gotGroundHits.Count>0){
 toSpawn.at.Clear();
 toSpawn.dequeued=false;
 plantsMultithreaded.Schedule(this);yield return waitUntil_backgroundData;
-spawnerQueue.Enqueue(toSpawn);
+//spawnerQueue.Enqueue(toSpawn);
 //instantiation
 }
 OnStoppedPlanting(cnk.cnkIdx);

@@ -24,7 +24,7 @@ ids.OnExitSave(idsThread);
 }
 }
 void OnDestroy(){Debug.Log("on destroy sim object spawner");
-foreach(var sO in all){Debug.Log("destroy sim object");
+foreach(var sO in all){//Debug.Log("destroy sim object");
 sO.fileData.backgroundData.Dispose();
 sO.fileData.foregroundData.Dispose();
 }
@@ -104,12 +104,13 @@ toSpawn.dequeued=true;
 }
 foreach(var fileIndex in searching.foundFileIndexes){
 if(active.ContainsKey((fileIndex.type,fileIndex.id))){/*Debug.Log("sim object already loaded");*/continue;}
-Debug.Log("place sim object for file found:"+fileIndex);
+//Debug.Log("place sim object for file found:"+fileIndex);
 Place(Vector3.zero,Vector3.zero,Vector3.one,fileIndex.type,(fileIndex.id,fileIndex.cnkIdx));
+yield return null;
 }
 instantiating=false;
 goto Loop;}
-internal static void OnDisabledSim(simObject sO){Debug.Log("OnDisabledSim");
+internal static void OnDisabledSim(simObject sO){//Debug.Log("OnDisabledSim");
 Type type=sO.GetType();
 singleton.searching.unloadedFilesSyn.Add(sO.fileData.syn);
 active.Remove((type,sO.id.Value));

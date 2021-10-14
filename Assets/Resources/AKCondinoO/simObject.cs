@@ -25,12 +25,12 @@ fileIndex_v=value;
 }
 }(ulong id,int?cnkIdx)?fileIndex_v;
 internal void OnExitSave(persistentDataMultithreaded[]threads,List<ManualResetEvent>handles){//Debug.Log("OnExitSave()");
-if(this!=null&&gameObject!=null){Debug.Log("OnExitSave gameObject not destroyed yet, call DisableSim");
+if(this!=null&&gameObject!=null){//Debug.Log("OnExitSave gameObject not destroyed yet, call DisableSim");
 DisableSim();
 }else{
-Debug.Log("OnExitSave gameObject already destroyed");
+//Debug.Log("OnExitSave gameObject already destroyed");
 }
-if(threads[0]!=null&&threads[0].IsRunning()){Debug.Log("salvar antes de sair");
+if(threads[0]!=null&&threads[0].IsRunning()){//Debug.Log("salvar antes de sair");
 if(id!=null){
 fileData.backgroundData.WaitOne();
 if(unloading){
@@ -57,7 +57,7 @@ persistentDataMultithreaded.Schedule(fileData);handles.Add(fileData.backgroundDa
 internal Bounds localBounds;readonly Vector3[]boundsVertices=new Vector3[8];bool boundsVerticesTransformed;
 internal new Collider[]collider;internal new Rigidbody rigidbody;
 internal new Renderer[]renderer;
-void Awake(){Debug.Log("simObject Awake");
+void Awake(){//Debug.Log("simObject Awake");
 fileData.type=GetType();
 collider=GetComponentsInChildren<Collider>();rigidbody=GetComponent<Rigidbody>();
 renderer=GetComponentsInChildren<Renderer>();
@@ -69,17 +69,17 @@ DisableSim();
 }
 internal bool isSimEnabled=true;
 void DisableSim(){
-if(isSimEnabled){Debug.Log("DisableSim");
+if(isSimEnabled){//Debug.Log("DisableSim");
 isSimEnabled=false;
 foreach(var col in collider){col.enabled=false;}if(rigidbody){rigidbody.constraints=RigidbodyConstraints.FreezeAll;}
 foreach(var ren in renderer){ren.enabled=false;}
 }
 }
 void EnableSim(){
-if(!isSimEnabled){Debug.Log("EnableSim");
+if(!isSimEnabled){//Debug.Log("EnableSim");
 isSimEnabled=true;
 foreach(var col in collider){col.enabled=true;}if(rigidbody){rigidbody.constraints=RigidbodyConstraints.None;}
-foreach(var ren in renderer){ren.enabled=true;}
+foreach(var ren in renderer){if(ren.name.Equals("tree"))continue;ren.enabled=true;}
 }
 }
 bool loading;bool unloading;
@@ -88,13 +88,17 @@ internal Vector2Int cCoord,cCoord_Pre;
 protected Quaternion previousRotation;
    protected Vector3 previousPosition;
    protected Vector3 previousScale;
+protected bool sleeping;
 [SerializeField]bool DEBUG_UNLOAD=false;
 [SerializeField]bool DEBUG_UNPLACE=false;
 void Update(){
 if(NetworkManager.Singleton.IsServer){
+if(sleeping){
+return;
+}
 if(id!=null){//Debug.Log("I exist");
-if(loading){Debug.Log("background loading in progress...");
-if(fileData.backgroundData.WaitOne(0)){Debug.Log("got loaded data to set");
+if(loading){//Debug.Log("background loading in progress...");
+if(fileData.backgroundData.WaitOne(0)){//Debug.Log("got loaded data to set");
 loading=false;
 fileData.Getserializable();
 fileData.Filltransform(transform);
@@ -103,8 +107,8 @@ previousPosition=transform.position;
 cCoord=cCoord_Pre=vecPosTocCoord(transform.position);
 cnkIdx=GetcnkIdx(cCoord.x,cCoord.y);
 }
-}else if(fileIndex!=null){Debug.Log("I need to load file data");
-if(fileData.backgroundData.WaitOne(0)){Debug.Log("start loading");
+}else if(fileIndex!=null){//Debug.Log("I need to load file data");
+if(fileData.backgroundData.WaitOne(0)){//Debug.Log("start loading");
 fileData.fileIndex_bg=fileIndex.Value;
 fileIndex=null;
 loading=true;
@@ -112,8 +116,8 @@ fileData.Setserializable();
 persistentDataMultithreaded.Schedule(fileData);
 }
 }else{
-if(unloading){Debug.Log("unloading: background saving in progress...");
-if(fileData.backgroundData.WaitOne(0)){Debug.Log("saved: now unload myself");
+if(unloading){//Debug.Log("unloading: background saving in progress...");
+if(fileData.backgroundData.WaitOne(0)){//Debug.Log("saved: now unload myself");
 unloading=false;
 if(fileData.unplace){
 fileData.unplace=false;
@@ -166,6 +170,8 @@ cCoord_Pre=cCoord;
 if(cCoord!=(cCoord=vecPosTocCoord(transform.position))){Debug.Log("I moved to cCoord:"+cCoord);
 cnkIdx=GetcnkIdx(cCoord.x,cCoord.y);
 }
+}else if(rigidbody==null){
+sleeping=true;
 }
 fileData.Copytransform(transform);
 previousRotation=transform.rotation;
@@ -240,23 +246,23 @@ protected override void Execute(){//Debug.Log("Execute()");
 lock(current.syn){
 bool loaded=false;
 string transformFile;
-string specsDataFile=string.Format("{0}({1},{2}).JsonSerializer",sObjectsSavePath,current.type,fileIndex.id);Debug.Log("specifications data file: "+specsDataFile);
+string specsDataFile=string.Format("{0}({1},{2}).JsonSerializer",sObjectsSavePath,current.type,fileIndex.id);//Debug.Log("specifications data file: "+specsDataFile);
 using(var file=new FileStream(specsDataFile,FileMode.OpenOrCreate,FileAccess.ReadWrite,FileShare.None)){
-if(file.Length>0){Debug.Log("I already exist");
+if(file.Length>0){//Debug.Log("I already exist");
 using(var reader=new StreamReader(file)){using(var json=new JsonTextReader(reader)){
 serializableSpecsData last=(serializableSpecsData)jsonSerializer.Deserialize(json,typeof(serializableSpecsData));
-if(!fileIndex.cnkIdx.HasValue){/*  :saving! ...Or else just being loaded  */Debug.Log("sim object is being saved in a new place, not just loaded; delete last transform data file: "+last.transformFile);
+if(!fileIndex.cnkIdx.HasValue){/*  :saving! ...Or else just being loaded  *///Debug.Log("sim object is being saved in a new place, not just loaded; delete last transform data file: "+last.transformFile);
 if(
 File.Exists(last.transformFile)){
 File.Delete(last.transformFile);
 }
 transformFile=nexttransformFile();
-}else{Debug.Log("sim object is being loaded, set transform data file to last: "+last.transformFile);
+}else{//Debug.Log("sim object is being loaded, set transform data file to last: "+last.transformFile);
 transformFile=last.transformFile;
 loaded=true;
 }
 }}
-}else{Debug.Log("I just came to existence");
+}else{//Debug.Log("I just came to existence");
 transformFile=nexttransformFile();
 }
 string nexttransformFile(){
@@ -268,8 +274,8 @@ Directory.CreateDirectory(transformPath);
 return string.Format("{0}({1},{2}).JsonSerializer",transformPath,current.type,fileIndex.id);
 }
 }
-Debug.Log("transform data file: "+transformFile);
-if(loaded){Debug.Log("load transform data file");
+//Debug.Log("transform data file: "+transformFile);
+if(loaded){//Debug.Log("load transform data file");
 using(var file=new FileStream(transformFile,FileMode.OpenOrCreate,FileAccess.ReadWrite,FileShare.None)){
 using(var reader=new StreamReader(file)){using(var json=new JsonTextReader(reader)){
 serializableTransform load=(serializableTransform)jsonSerializer.Deserialize(json,typeof(serializableTransform));
@@ -298,7 +304,7 @@ using(var writer=new StreamWriter(file)){using(var json=new JsonTextWriter(write
 jsonSerializer.Serialize(json,specsData,typeof(serializableSpecsData));
 }}
 }
-var f=fileIndex;f.cnkIdx=null;fileIndex=f;Debug.Log("set persistent data to be saved from now on");
+var f=fileIndex;f.cnkIdx=null;fileIndex=f;//Debug.Log("set persistent data to be saved from now on");
 }
 }
 }
