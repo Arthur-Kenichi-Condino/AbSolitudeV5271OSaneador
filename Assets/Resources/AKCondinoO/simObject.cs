@@ -7,6 +7,7 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using Unity.Netcode;
+using Unity.Netcode.Components;
 using UnityEngine;
 using static AKCondinoO.core;
 using static AKCondinoO.simObject.persistentData;
@@ -54,11 +55,14 @@ persistentDataMultithreaded.Schedule(fileData);handles.Add(fileData.backgroundDa
 }
 }
 }
+internal NetworkObject network;internal NetworkTransform networkTransform;
 internal Bounds localBounds;readonly Vector3[]boundsVertices=new Vector3[8];bool boundsVerticesTransformed;
 internal new Collider[]collider;internal new Rigidbody rigidbody;
 internal new Renderer[]renderer;
 void Awake(){//Debug.Log("simObject Awake");
 fileData.type=GetType();
+network=GetComponent<NetworkObject>();
+networkTransform=GetComponent<NetworkTransform>();
 collider=GetComponentsInChildren<Collider>();rigidbody=GetComponent<Rigidbody>();
 renderer=GetComponentsInChildren<Renderer>();
 localBounds=new Bounds(Vector3.zero,Vector3.zero);
@@ -71,6 +75,7 @@ internal bool isSimEnabled=true;
 void DisableSim(){
 if(isSimEnabled){//Debug.Log("DisableSim");
 isSimEnabled=false;
+networkTransform.enabled=false;
 foreach(var col in collider){col.enabled=false;}if(rigidbody){rigidbody.constraints=RigidbodyConstraints.FreezeAll;}
 foreach(var ren in renderer){ren.enabled=false;}
 }
@@ -78,6 +83,7 @@ foreach(var ren in renderer){ren.enabled=false;}
 void EnableSim(){
 if(!isSimEnabled){//Debug.Log("EnableSim");
 isSimEnabled=true;
+networkTransform.enabled=true;
 foreach(var col in collider){col.enabled=true;}if(rigidbody){rigidbody.constraints=RigidbodyConstraints.None;}
 foreach(var ren in renderer){if(ren.name.Equals("tree"))continue;ren.enabled=true;}
 }

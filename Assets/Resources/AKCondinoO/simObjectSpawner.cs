@@ -93,12 +93,15 @@ loadingRequired=false;
 }
 }
 }
+[SerializeField]double instantiationMaxExecutionTime=7.0;
 bool instantiating;WaitUntil waitUntilInstantiationRequested;WaitUntil waitUntilIdsSaved;WaitUntil waitUntilFilesSearched;
 internal static Coroutine instantiation;internal IEnumerator Instantiation(){
+System.Diagnostics.Stopwatch stopwatch=System.Diagnostics.Stopwatch.StartNew();bool limitExecutionTimeElapsed(){if(stopwatch.Elapsed.TotalMilliseconds>instantiationMaxExecutionTime){stopwatch.Restart();return true;}return false;}
 Loop:{}yield return waitUntilInstantiationRequested;/*Debug.Log("loading ids");*/yield return waitUntilIdsSaved;yield return waitUntilFilesSearched;Debug.Log("begin instantiation");
 while(spawnerQueue.Count>0){var toSpawn=spawnerQueue.Dequeue();
 foreach(var at in toSpawn.at){
 Place(at.position,at.rotation,at.scale,at.type);
+if(limitExecutionTimeElapsed())yield return null;
 }
 toSpawn.dequeued=true;
 }
@@ -106,7 +109,7 @@ foreach(var fileIndex in searching.foundFileIndexes){
 if(active.ContainsKey((fileIndex.type,fileIndex.id))){/*Debug.Log("sim object already loaded");*/continue;}
 //Debug.Log("place sim object for file found:"+fileIndex);
 Place(Vector3.zero,Vector3.zero,Vector3.one,fileIndex.type,(fileIndex.id,fileIndex.cnkIdx));
-//yield return null;
+if(limitExecutionTimeElapsed())yield return null;
 }
 instantiating=false;
 goto Loop;}

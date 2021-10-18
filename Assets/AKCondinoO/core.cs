@@ -14,7 +14,11 @@ internal static string saveName;
 internal static string savePath;
 internal static string perChunkSavePath;
 internal static string sObjectsSavePath;
+void Awake(){
+QualitySettings.vSyncCount=0;
+}
 void Update(){
+if(Application.targetFrameRate!=60){Application.targetFrameRate=60;}
 if(!NetworkManager.Singleton.IsServer
  &&!NetworkManager.Singleton.IsClient){
 if(!string.IsNullOrEmpty(saveName)&&/*  terrain stopped:  */poolSize==0&&/*  sim objects spawner stopped:  */instantiation==null){Debug.Log("game closed to main menu");

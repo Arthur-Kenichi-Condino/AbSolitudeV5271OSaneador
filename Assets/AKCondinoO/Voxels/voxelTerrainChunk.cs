@@ -169,7 +169,7 @@ toSpawn.at.Clear();
 toSpawn.dequeued=false;
 plantsMultithreaded.Schedule(this);yield return waitUntil_backgroundData;
 //spawnerQueue.Enqueue(toSpawn);
-//instantiation
+//...instantiation wait dequeue save if success cancell if instantiation==null
 }
 OnStoppedPlanting(cnk.cnkIdx);
 plantingPending=false;
@@ -227,16 +227,19 @@ toSpawn.at.Add((floor.point,Vector3.zero,Vector3.one,plantData.plant));
 }else if(gotGroundHits.Count==0){Debug.Log("get rays to ground");
 Vector3Int vCoord1=new Vector3Int(0,Height/2-1,0);
 for(vCoord1.x=0             ;vCoord1.x<Width;vCoord1.x++){
+foreach(var plant in spacingOwnTypeOnly.Keys.ToList()){Vector2Int spacing=spacingOwnTypeOnly[plant];spacing.x=0;spacing.y--;if(spacing.y>0){spacingOwnTypeOnly[plant]=spacing;}else{spacingOwnTypeOnly.Remove(plant);}}
 for(vCoord1.z=0             ;vCoord1.z<Depth;vCoord1.z++){
 Vector3Int noiseInput=vCoord1;noiseInput.x+=cnkRgn1.x;
                               noiseInput.z+=cnkRgn1.y;
 (Type plant,plantData data)?plantData=biome.Egplant(noiseInput);if(plantData!=null){//Debug.Log("plantData:"+plantData);
+if(spacingOwnTypeOnly.TryGetValue(plantData.Value.plant,out Vector2Int spacing)){spacing.x--;spacingOwnTypeOnly[plantData.Value.plant]=spacing;if(spacing.x>0||spacing.y>0){continue;}}
 Vector3 from=vCoord1;
         from.x+=cnkRgn1.x-Width/2f;
         from.z+=cnkRgn1.y-Depth/2f;
 getGroundRays.AddNoResize(new RaycastCommand(from,Vector3.down,Height,physHelper.voxelTerrain));gotGroundRays.Add((vCoord1.x,vCoord1.z));
 getGroundHits.AddNoResize(new RaycastHit    ()                                                );
 plantAt[(vCoord1.x,vCoord1.z)]=plantData.Value;
+spacingOwnTypeOnly[plantData.Value.plant]=new Vector2Int(10,10);
 }
 }
 }
