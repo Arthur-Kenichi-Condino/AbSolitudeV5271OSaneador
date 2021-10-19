@@ -57,13 +57,13 @@ persistentDataMultithreaded.Schedule(fileData);handles.Add(fileData.backgroundDa
 }
 internal NetworkObject network;internal NetworkTransform networkTransform;
 internal Bounds localBounds;readonly Vector3[]boundsVertices=new Vector3[8];bool boundsVerticesTransformed;
-internal new Collider[]collider;internal new Rigidbody rigidbody;
+internal new Collider[]collider;internal new Rigidbody rigidbody;internal readonly List<Collider>volumeCollider=new List<Collider>();
 internal new Renderer[]renderer;
 void Awake(){//Debug.Log("simObject Awake");
 fileData.type=GetType();
 network=GetComponent<NetworkObject>();
 networkTransform=GetComponent<NetworkTransform>();
-collider=GetComponentsInChildren<Collider>();rigidbody=GetComponent<Rigidbody>();
+collider=GetComponentsInChildren<Collider>();rigidbody=GetComponent<Rigidbody>();foreach(var col in collider)if(col.CompareTag("volume"))volumeCollider.Add(col);
 renderer=GetComponentsInChildren<Renderer>();
 localBounds=new Bounds(Vector3.zero,Vector3.zero);
 foreach(var col in collider){
@@ -76,7 +76,7 @@ void DisableSim(){
 if(isSimEnabled){//Debug.Log("DisableSim");
 isSimEnabled=false;
 networkTransform.enabled=false;
-foreach(var col in collider){col.enabled=false;}if(rigidbody){rigidbody.constraints=RigidbodyConstraints.FreezeAll;}
+foreach(var col in collider){if(col.CompareTag("volume"))continue;col.enabled=false;}if(rigidbody){rigidbody.constraints=RigidbodyConstraints.FreezeAll;}
 foreach(var ren in renderer){ren.enabled=false;}
 }
 }
@@ -148,6 +148,7 @@ unloading=true;
 fileData.Setserializable();
 persistentDataMultithreaded.Schedule(fileData);
 }
+}else if(IsOverlappingNonAlloc()){//Debug.Log("Overlapping",this);
 }else if(transform.position.y<-Height/2f){
 if(previousPosition.y<-Height/2f){transform.position=previousPosition;}
 DisableSim();
@@ -199,6 +200,26 @@ boundsVertices[7]=transform.TransformPoint(localBounds.min.x,localBounds.max.y,l
 boundsVerticesTransformed=true;
 }
 }
+Collider[]overlappingNonAllocColliders=new Collider[1];
+bool IsOverlappingNonAlloc(){
+if(rigidbody!=null){return false;}
+bool result=false;
+int overlappingsLength;for(int i=0;i<volumeCollider.Count;++i){var size=volumeCollider[i].bounds.size;var center=volumeCollider[i].bounds.center;
+if((overlappingsLength=Physics.OverlapBoxNonAlloc(center,size/2f,overlappingNonAllocColliders,transform.rotation,physHelper.volumeCollider))>0){
+while(overlappingNonAllocColliders.Length<=overlappingsLength){
+Array.Resize(ref overlappingNonAllocColliders,overlappingsLength*2);
+Debug.Log("overlappingNonAllocColliders resized to:"+overlappingNonAllocColliders.Length);
+overlappingsLength=Physics.OverlapBoxNonAlloc(center,size/2f,overlappingNonAllocColliders,transform.rotation,physHelper.volumeCollider);
+}
+for(int j=0;j<overlappingsLength;++j){var overlapping=overlappingNonAllocColliders[j];
+if(overlapping.GetComponent<Rigidbody>()!=null){continue;}
+if(overlapping.transform.root!=transform.root){
+//result=true;
+}
+}
+}
+}
+return result;}
 internal readonly persistentData fileData=new persistentData();
 internal class persistentData:backgroundObject{
 internal readonly object syn=new object();

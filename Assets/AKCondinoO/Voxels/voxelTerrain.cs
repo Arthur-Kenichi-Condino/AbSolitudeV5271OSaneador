@@ -348,10 +348,12 @@ Sand=4,
 }
 internal static class physHelper{
 internal static int navMeshLayers;
+internal static int volumeCollider;
 internal static int voxelTerrain;
 internal static void SetLayerMasks(){
-navMeshLayers=1<<LayerMask.NameToLayer("voxelTerrain");
- voxelTerrain=1<<LayerMask.NameToLayer("voxelTerrain");
+ navMeshLayers=1<<LayerMask.NameToLayer("voxelTerrain");
+volumeCollider=1<<LayerMask.NameToLayer("volumeCollider");
+  voxelTerrain=1<<LayerMask.NameToLayer("voxelTerrain");
 }
 }
 internal readonly editing edits=new editing();
