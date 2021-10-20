@@ -100,6 +100,7 @@ protected bool sleeping;
 void Update(){
 if(NetworkManager.Singleton.IsServer){
 if(sleeping){
+overlappingRemoved.Clear();
 return;
 }
 if(id!=null){//Debug.Log("I exist");
@@ -132,23 +133,31 @@ OnUnplace(this);
 OnDisabledSim(this);
 }
 }else if(DEBUG_UNPLACE){Debug.Log("DEBUG_UNPLACE");
-DEBUG_UNPLACE=false;
 DisableSim();
 if(fileData.backgroundData.WaitOne(0)){Debug.Log("I need to be unloaded because:DEBUG_UNPLACE");
+DEBUG_UNPLACE=false;
 unloading=true;
 fileData.unplace=true;
 fileData.Setserializable();
 persistentDataMultithreaded.Schedule(fileData);
 }
 }else if(DEBUG_UNLOAD){Debug.Log("DEBUG_UNLOAD");
-DEBUG_UNLOAD=false;
 DisableSim();
 if(fileData.backgroundData.WaitOne(0)){Debug.Log("I need to be unloaded because:DEBUG_UNLOAD");
+DEBUG_UNLOAD=false;
 unloading=true;
 fileData.Setserializable();
 persistentDataMultithreaded.Schedule(fileData);
 }
-}else if(IsOverlappingNonAlloc()){//Debug.Log("Overlapping",this);
+}else if(isOverlapping||IsOverlappingNonAlloc()){//Debug.Log("Overlapping",this);
+DisableSim();
+if(fileData.backgroundData.WaitOne(0)){Debug.Log("I need to be unloaded because:isOverlapping");
+isOverlapping=false;
+unloading=true;
+fileData.unplace=true;
+fileData.Setserializable();
+persistentDataMultithreaded.Schedule(fileData);
+}
 }else if(transform.position.y<-Height/2f){
 if(previousPosition.y<-Height/2f){transform.position=previousPosition;}
 DisableSim();
@@ -199,7 +208,15 @@ boundsVertices[6]=transform.TransformPoint(localBounds.max.x,localBounds.max.y,l
 boundsVertices[7]=transform.TransformPoint(localBounds.min.x,localBounds.max.y,localBounds.max.z);
 boundsVerticesTransformed=true;
 }
+overlappingRemoved.Clear();
 }
+internal readonly Dictionary<Collider,simObject>overlappingRemoved=new Dictionary<Collider,simObject>();
+void OnOverlappingRemoved(List<Collider>volumeCollider,simObject sO){//Debug.Log("overlapping object removed itself because of me:"+name+" at "+transform.position,this);Debug.Log("mark that I have this one overlapping removed:"+sO.name+" at "+sO.transform.position,sO);
+for(int i=0;i<volumeCollider.Count;++i){
+overlappingRemoved[volumeCollider[i]]=sO;
+}
+}
+bool isOverlapping;
 Collider[]overlappingNonAllocColliders=new Collider[1];
 bool IsOverlappingNonAlloc(){
 if(rigidbody!=null){return false;}
@@ -214,12 +231,21 @@ overlappingsLength=Physics.OverlapBoxNonAlloc(center,size/2f,overlappingNonAlloc
 for(int j=0;j<overlappingsLength;++j){var overlapping=overlappingNonAllocColliders[j];
 if(overlapping.GetComponent<Rigidbody>()!=null){continue;}
 if(overlapping.transform.root!=transform.root){
-//result=true;
+if(!overlappingRemoved.ContainsKey(overlapping)){
+result=true;
+}
+}
+}
+if(result){
+for(int j=0;j<overlappingsLength;++j){var overlapping=overlappingNonAllocColliders[j];
+simObject sO;if((sO=overlapping.transform.parent.GetComponent<simObject>())!=null){
+sO.OnOverlappingRemoved(volumeCollider,this);
 }
 }
 }
 }
-return result;}
+}
+return isOverlapping=result;}
 internal readonly persistentData fileData=new persistentData();
 internal class persistentData:backgroundObject{
 internal readonly object syn=new object();
