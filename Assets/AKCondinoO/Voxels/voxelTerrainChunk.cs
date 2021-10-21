@@ -232,6 +232,7 @@ for(vCoord1.z=0             ;vCoord1.z<Depth;vCoord1.z++){
 Vector3Int noiseInput=vCoord1;noiseInput.x+=cnkRgn1.x;
                               noiseInput.z+=cnkRgn1.y;
 (Type plant,plantData data)?plantData=biome.Egplant(noiseInput);if(plantData!=null){//Debug.Log("plantData:"+plantData);
+if(vCoord1.x<10||vCoord1.z<10){continue;}
 if(spacingOwnTypeOnly.TryGetValue(plantData.Value.plant,out Vector2Int spacing)){spacing.x--;spacingOwnTypeOnly[plantData.Value.plant]=spacing;if(spacing.x>0||spacing.y>0){continue;}}
 Vector3 from=vCoord1;
         from.x+=cnkRgn1.x-Width/2f;
