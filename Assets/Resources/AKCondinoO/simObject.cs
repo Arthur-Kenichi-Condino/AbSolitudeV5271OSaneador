@@ -89,8 +89,9 @@ foreach(var ren in renderer){if(ren.name.Equals("tree"))continue;ren.enabled=tru
 }
 }
 bool loading;bool unloading;
-internal Vector2Int cCoord,cCoord_Pre;
-       internal int cnkIdx;
+       internal Vector2Int cCoord,cCoord_Pre;
+              internal int cnkIdx;
+internal voxelTerrainChunk cnk;bool cnkMoved;
 protected Quaternion previousRotation;
    protected Vector3 previousPosition;
    protected Vector3 previousScale;
@@ -101,8 +102,17 @@ protected bool sleeping;
 void Update(){
 if(NetworkManager.Singleton.IsServer){
 if(sleeping){
-overlappingRemoved.Clear();
+if(cnk==null||cnk.gameObject==null||(cnkMoved=cnk.moved)){Debug.Log("wake up! cnkMoved!");
+sleeping=false;
+}else 
+if(transform.rotation!=previousRotation
+ ||transform.position!=previousPosition
+ ||transform.localScale!=previousScale){
+sleeping=false;
+}else{
+if(overlappingRemoved.Count>0)overlappingRemoved.Clear();
 return;
+}
 }
 if(id!=null){//Debug.Log("I exist");
 if(loading){//Debug.Log("background loading in progress...");
@@ -159,6 +169,14 @@ fileData.unplace=true;
 fileData.Setserializable();
 persistentDataMultithreaded.Schedule(fileData);
 }
+}else if(cnkMoved){
+DisableSim();
+if(fileData.backgroundData.WaitOne(0)){Debug.Log("I need to be unloaded because:cnkMoved");
+cnkMoved=false;
+unloading=true;
+fileData.Setserializable();
+persistentDataMultithreaded.Schedule(fileData);
+}
 }else if(transform.position.y<-Height/2f){
 if(previousPosition.y<-Height/2f){transform.position=previousPosition;}
 DisableSim();
@@ -193,7 +211,7 @@ if(noOverlaps){noOverlaps=false;
 validating=false;
 validated=true;
 }
-}else if(rigidbody==null){
+}else if(rigidbody==null&&voxelTerrain.active.TryGetValue(cnkIdx,out cnk)&&!(cnkMoved=cnk.moved)){Debug.Log("sleep...");
 sleeping=true;
 }
 fileData.Copytransform(transform);
@@ -215,7 +233,7 @@ boundsVertices[6]=transform.TransformPoint(localBounds.max.x,localBounds.max.y,l
 boundsVertices[7]=transform.TransformPoint(localBounds.min.x,localBounds.max.y,localBounds.max.z);
 boundsVerticesTransformed=true;
 }
-overlappingRemoved.Clear();
+if(overlappingRemoved.Count>0)overlappingRemoved.Clear();
 }
 internal readonly Dictionary<Collider,simObject>overlappingRemoved=new Dictionary<Collider,simObject>();
 void OnOverlappingRemoved(List<Collider>volumeCollider,simObject sO){Debug.Log("overlapping object removed itself because of me:"+name+" at "+transform.position,this);Debug.Log("mark that I have this one overlapping removed:"+sO.name+" at "+sO.transform.position,sO);
@@ -228,7 +246,7 @@ Collider[]overlappingNonAllocColliders=new Collider[1];
 bool IsOverlappingNonAlloc(){
 if(rigidbody!=null){return false;}
 bool result=false;
-int overlappingsLength;for(int i=0;i<volumeCollider.Count;++i){var size=volumeCollider[i].bounds.size;var center=volumeCollider[i].bounds.center;Debug.Log("center:"+center);
+int overlappingsLength;for(int i=0;i<volumeCollider.Count;++i){var size=volumeCollider[i].bounds.size;var center=volumeCollider[i].bounds.center;//Debug.Log("center:"+center);
 if((overlappingsLength=Physics.OverlapBoxNonAlloc(center,size/2f,overlappingNonAllocColliders,transform.rotation,physHelper.volumeCollider))>0){
 while(overlappingNonAllocColliders.Length<=overlappingsLength){
 Array.Resize(ref overlappingNonAllocColliders,overlappingsLength*2);

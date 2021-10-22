@@ -45,7 +45,7 @@ waitUntilInstantiationRequested=new WaitUntil(()=>instantiating);waitUntilIdsSav
 [SerializeField]Vector3   DEBUG_CREATE_SIM_OBJECT_SCALE=Vector3.one;
 [SerializeField]simObject DEBUG_CREATE_SIM_OBJECT=null;
 internal static readonly Queue<spawnData>spawnerQueue=new Queue<spawnData>();internal class spawnData{internal bool dequeued;internal readonly List<(Vector3 position,Vector3 rotation,Vector3 scale,Type type)>at=new List<(Vector3,Vector3,Vector3,Type)>(1);}
-bool loadingRequired;[SerializeField]float reloadInterval=5f;float reloadTimer=0f;
+bool loadingRequired;[SerializeField]float reloadInterval=5f;float reloadTimer=5f;
 void Update(){
 if(DEBUG_CREATE_SIM_OBJECT){
 var spawn=new spawnData();spawn.at.Add((DEBUG_CREATE_SIM_OBJECT_POSITION,DEBUG_CREATE_SIM_OBJECT_ROTATION,DEBUG_CREATE_SIM_OBJECT_SCALE,DEBUG_CREATE_SIM_OBJECT.GetType()));

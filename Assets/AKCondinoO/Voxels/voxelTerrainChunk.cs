@@ -28,6 +28,7 @@ internal const ushort FlattenOffset=(Width*Depth);
 internal const int VoxelsPerChunk=(FlattenOffset*Height);
 internal LinkedListNode<voxelTerrainChunk>expropriated;
 internal NetworkObject network;
+internal bool moved;
 internal Bounds worldBounds;
   internal Mesh mesh;
 MeshUpdateFlags meshFlags=MeshUpdateFlags.DontValidateIndices|MeshUpdateFlags.DontNotifyMeshUsers|MeshUpdateFlags.DontRecalculateBounds;static readonly VertexAttributeDescriptor[]layout=new[]{

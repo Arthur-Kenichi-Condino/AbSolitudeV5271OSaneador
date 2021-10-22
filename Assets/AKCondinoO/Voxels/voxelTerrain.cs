@@ -91,6 +91,7 @@ internal static bool navMeshDirty;static float navMeshBuildInterval=10f;static f
 internal static AsyncOperation[]navMeshAsyncOperation;
 internal static readonly Dictionary<GameObject,NavMeshBuildSource>navMeshSources=new Dictionary<GameObject,NavMeshBuildSource>();static readonly List<NavMeshBuildSource>sources=new List<NavMeshBuildSource>();
 internal static readonly Dictionary<GameObject,NavMeshBuildMarkup>navMeshMarkups=new Dictionary<GameObject,NavMeshBuildMarkup>();static readonly List<NavMeshBuildMarkup>markups=new List<NavMeshBuildMarkup>();
+internal static readonly HashSet<voxelTerrainChunk>moved=new HashSet<voxelTerrainChunk>();
 [SerializeField]bool       DEBUG_EDIT=false;
 [SerializeField]Vector3    DEBUG_EDIT_AT=Vector3.zero;
 [SerializeField]editMode   DEBUG_EDIT_MODE=editMode.cube;
@@ -132,6 +133,7 @@ voxelTerrainChunk cnk;all.Add(cnk=Instantiate(prefab));cnk.expropriated=pool.Add
 marchingCubesMultithreaded.Stop=false;for(int i=0;i<marchingCubesThreads.Length;++i){marchingCubesThreads[i]=new marchingCubesMultithreaded();}
        plantsMultithreaded.Stop=false;for(int i=0;i<     plantingThreads.Length;++i){     plantingThreads[i]=new        plantsMultithreaded();}
       editingMultithreaded.Stop=false;editsThread=new editingMultithreaded();
+moved.Clear();
 }
 if(DEBUG_EDIT){
    DEBUG_EDIT=false;
@@ -149,6 +151,10 @@ if(edits.requests.Count>0){Debug.Log("process edits.requests");
 editingMultithreaded.Schedule(edits);
 }
 }
+foreach(var cnk in moved){
+cnk.moved=false;
+}
+moved.Clear();
 if(planting.Count==0)foreach(var movement in bounds){if(movement.Value==null)continue;var moved=movement.Value;Vector2Int bCoord_Pre=moved.Value.cCoord_Pre;Vector2Int bCoord=moved.Value.cCoord;
 for(Vector2Int eCoord=new Vector2Int(),cCoord1=new Vector2Int();eCoord.y<=expropriationDistance.y;eCoord.y++){for(cCoord1.y=-eCoord.y+bCoord_Pre.y;cCoord1.y<=eCoord.y+bCoord_Pre.y;cCoord1.y+=eCoord.y*2){
 for(           eCoord.x=0                                      ;eCoord.x<=expropriationDistance.x;eCoord.x++){for(cCoord1.x=-eCoord.x+bCoord_Pre.x;cCoord1.x<=eCoord.x+bCoord_Pre.x;cCoord1.x+=eCoord.x*2){
@@ -175,7 +181,7 @@ if(Math.Abs(cCoord1.x)>=MaxcCoordx||
 goto _skip;
 }
 //Debug.Log("try to activate chunk at:.."+cCoord1);
-int cnkIdx1=GetcnkIdx(cCoord1.x,cCoord1.y);if(!active.TryGetValue(cnkIdx1,out voxelTerrainChunk cnk)){/*Debug.Log("do activate a chunk for index:.."+cnkIdx1+";[current chunk pool.Count:.."+pool.Count);*/cnk=pool.First.Value;pool.RemoveFirst();cnk.expropriated=(null);if(cnk.cnkIdx!=null&&active.ContainsKey(cnk.cnkIdx.Value)){active.Remove(cnk.cnkIdx.Value);}active.Add(cnkIdx1,cnk);cnk.OncCoordChanged(cCoord1,cnkIdx1);
+int cnkIdx1=GetcnkIdx(cCoord1.x,cCoord1.y);if(!active.TryGetValue(cnkIdx1,out voxelTerrainChunk cnk)){/*Debug.Log("do activate a chunk for index:.."+cnkIdx1+";[current chunk pool.Count:.."+pool.Count);*/cnk=pool.First.Value;pool.RemoveFirst();cnk.expropriated=(null);if(cnk.cnkIdx!=null&&active.ContainsKey(cnk.cnkIdx.Value)){active.Remove(cnk.cnkIdx.Value);}active.Add(cnkIdx1,cnk);cnk.OncCoordChanged(cCoord1,cnkIdx1);cnk.moved=true;voxelTerrain.moved.Add(cnk);
 }else{//Debug.Log("but it is already active, the chunk of index:.."+cnkIdx1);
 if(cnk.expropriated!=null){pool.Remove(cnk.expropriated);cnk.expropriated=(null);/*Debug.Log("but it was expropriated, the chunk of index:.."+cnkIdx1);*/}
 }
