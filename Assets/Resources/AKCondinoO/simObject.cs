@@ -96,6 +96,7 @@ protected Quaternion previousRotation;
    protected Vector3 previousPosition;
    protected Vector3 previousScale;
 protected bool validating,validated,noOverlaps;
+bool outOfTerrain;
 protected bool sleeping;
 [SerializeField]bool DEBUG_UNLOAD=false;
 [SerializeField]bool DEBUG_UNPLACE=false;
@@ -160,6 +161,15 @@ unloading=true;
 fileData.Setserializable();
 persistentDataMultithreaded.Schedule(fileData);
 }
+}else if(transform.position.y<-Height/2f){
+if(previousPosition.y<-Height/2f){transform.position=previousPosition;}
+DisableSim();
+if(fileData.backgroundData.WaitOne(0)){Debug.Log("I need to be unloaded because:transform.position.y<-Height/2f:transform.position.y:"+transform.position.y);
+unloading=true;
+fileData.unplace=true;
+fileData.Setserializable();
+persistentDataMultithreaded.Schedule(fileData);
+}
 }else if(validating&&!noOverlaps&&(isOverlapping||IsOverlappingNonAlloc())){//Debug.Log("Overlapping",this);
 DisableSim();
 if(fileData.backgroundData.WaitOne(0)){Debug.Log("I need to be unloaded because:isOverlapping");
@@ -177,19 +187,11 @@ unloading=true;
 fileData.Setserializable();
 persistentDataMultithreaded.Schedule(fileData);
 }
-}else if(transform.position.y<-Height/2f){
-if(previousPosition.y<-Height/2f){transform.position=previousPosition;}
-DisableSim();
-if(fileData.backgroundData.WaitOne(0)){Debug.Log("I need to be unloaded because:transform.position.y<-Height/2f:transform.position.y:"+transform.position.y);
-unloading=true;
-fileData.unplace=true;
-fileData.Setserializable();
-persistentDataMultithreaded.Schedule(fileData);
-}
-}else if(boundsVerticesTransformed&&boundsVertices.Any(v=>{Vector2Int cCoord=vecPosTocCoord(v);int cnkIdx=GetcnkIdx(cCoord.x,cCoord.y);return(!voxelTerrain.active.TryGetValue(cnkIdx,out voxelTerrainChunk cnk)||cnk.meshDirty);})){
+}else if(outOfTerrain||(outOfTerrain=(boundsVerticesTransformed&&boundsVertices.Any(v=>{Vector2Int cCoord=vecPosTocCoord(v);int cnkIdx=GetcnkIdx(cCoord.x,cCoord.y);return(!voxelTerrain.active.TryGetValue(cnkIdx,out voxelTerrainChunk cnk)||cnk.meshDirty);})))){
 transform.position=previousPosition;
 DisableSim();
 if(fileData.backgroundData.WaitOne(0)){Debug.Log("I need to be unloaded because:cnk==null or cnk.meshDirty");
+outOfTerrain=false;
 unloading=true;
 fileData.Setserializable();
 persistentDataMultithreaded.Schedule(fileData);

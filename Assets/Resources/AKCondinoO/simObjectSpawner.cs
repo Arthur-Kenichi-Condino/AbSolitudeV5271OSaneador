@@ -248,8 +248,8 @@ foreach(var syn in current.loadedFilesSyn)Monitor.Enter(syn);try{
 current.foundFileIndexes.Clear();
 Debug.Log("current.searchWherabouts.Count:"+current.searchWherabouts.Count);
 foreach(Vector2Int bCoord in current.searchWherabouts){//Debug.Log("bCoord:"+bCoord);
-for(Vector2Int iCoord=new Vector2Int(),cCoord1=new Vector2Int();iCoord.y<=instantiationDistance.y;iCoord.y++){for(cCoord1.y=-iCoord.y+bCoord.y;cCoord1.y<=iCoord.y+bCoord.y;cCoord1.y+=iCoord.y*2){
-for(           iCoord.x=0                                      ;iCoord.x<=instantiationDistance.x;iCoord.x++){for(cCoord1.x=-iCoord.x+bCoord.x;cCoord1.x<=iCoord.x+bCoord.x;cCoord1.x+=iCoord.x*2){
+for(Vector2Int iCoord=new Vector2Int(),cCoord1=new Vector2Int();iCoord.y<=instantiationDistance.y-1;iCoord.y++){for(cCoord1.y=-iCoord.y+bCoord.y;cCoord1.y<=iCoord.y+bCoord.y;cCoord1.y+=iCoord.y*2){
+for(           iCoord.x=0                                      ;iCoord.x<=instantiationDistance.x-1;iCoord.x++){for(cCoord1.x=-iCoord.x+bCoord.x;cCoord1.x<=iCoord.x+bCoord.x;cCoord1.x+=iCoord.x*2){
 if(Math.Abs(cCoord1.x)>=MaxcCoordx||
    Math.Abs(cCoord1.y)>=MaxcCoordy){//Debug.Log("do not try to load sim objects at out of world cCoord:.."+cCoord1);
 goto _skip;

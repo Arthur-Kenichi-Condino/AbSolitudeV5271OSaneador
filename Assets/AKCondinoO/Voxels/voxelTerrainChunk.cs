@@ -144,12 +144,15 @@ meshDirty=true;
 internal readonly plants eg=new plants();
 internal class plants:backgroundObject{
 voxelTerrainChunk cnk;
-internal bool plantingPending;WaitUntil waitUntilMeshBuilt;WaitUntil waitUntil_backgroundData;WaitUntil waitUntil_doRaycastsHandle;
+internal bool plantingPending;WaitUntil waitUntilMeshBuilt;WaitUntil waitUntil_backgroundData;WaitUntil waitUntil_doRaycastsHandle;WaitUntil waitUntilDequeued;
 internal Coroutine planting;internal IEnumerator Planting(){
 waitUntilMeshBuilt=new WaitUntil(()=>plantingPending&&!cnk.meshDirty);
 waitUntil_backgroundData=new WaitUntil(()=>backgroundData.WaitOne(0));
-waitUntil_doRaycastsHandle=new WaitUntil(()=>doRaycastsHandle.IsCompleted);yield return waitUntil_doRaycastsHandle;
+waitUntil_doRaycastsHandle=new WaitUntil(()=>doRaycastsHandle.IsCompleted);
+waitUntilDequeued=new WaitUntil(()=>toSpawn.dequeued);
+yield return waitUntil_doRaycastsHandle;
 Loop:{}yield return waitUntilMeshBuilt;Debug.Log("Planting()");
+done=false;
 OnPlantingStarted(cnk);
 getGroundRays.Clear();gotGroundRays.Clear();
 getGroundHits.Clear();gotGroundHits.Clear();
@@ -169,12 +172,15 @@ if(gotGroundHits.Count>0){
 toSpawn.at.Clear();
 toSpawn.dequeued=false;
 plantsMultithreaded.Schedule(this);yield return waitUntil_backgroundData;
-//spawnerQueue.Enqueue(toSpawn);
-//...instantiation wait dequeue save if success cancell if instantiation==null
+spawnerQueue.Enqueue(toSpawn);
+yield return waitUntilDequeued;
 }
+done=true;
+plantsMultithreaded.Schedule(this);yield return waitUntil_backgroundData;
 OnStoppedPlanting(cnk.cnkIdx);
 plantingPending=false;
 goto Loop;}
+internal bool done;
 JobHandle doRaycastsHandle;
 internal NativeList<RaycastCommand>getGroundRays;internal readonly        List<(int x,int z)>gotGroundRays=new List<(int,int)>();
 internal NativeList<RaycastHit    >getGroundHits;internal readonly Dictionary<int,RaycastHit>gotGroundHits=new Dictionary<int,RaycastHit>(Width*Depth);
@@ -215,7 +221,8 @@ spacingAllTypes=Vector2Int.zero;spacingOwnTypeOnly.Clear();spacingByLayer.Clear(
 }
 Vector2Int spacingAllTypes;readonly Dictionary<Type,Vector2Int>spacingOwnTypeOnly=new Dictionary<Type,Vector2Int>();readonly Dictionary<int,Vector2Int>spacingByLayer=new Dictionary<int,Vector2Int>();
 protected override void Execute(){
-if(gotGroundHits.Count>0){Debug.Log("got hits on ground");
+if(current.done){Debug.Log("done");
+}else if(gotGroundHits.Count>0){Debug.Log("got hits on ground");
 Vector3Int vCoord1=new Vector3Int(0,Height/2-1,0);int i=0;
 for(vCoord1.x=0             ;vCoord1.x<Width;vCoord1.x++){
 for(vCoord1.z=0             ;vCoord1.z<Depth;vCoord1.z++){int index=vCoord1.z+vCoord1.x*Depth;
@@ -236,8 +243,8 @@ Vector3Int noiseInput=vCoord1;noiseInput.x+=cnkRgn1.x;
 if(vCoord1.x<10||vCoord1.z<10){continue;}
 if(spacingOwnTypeOnly.TryGetValue(plantData.Value.plant,out Vector2Int spacing)){spacing.x--;spacingOwnTypeOnly[plantData.Value.plant]=spacing;if(spacing.x>0||spacing.y>0){continue;}}
 Vector3 from=vCoord1;
-        from.x+=cnkRgn1.x-Width/2f;
-        from.z+=cnkRgn1.y-Depth/2f;
+        from.x+=(cnkRgn1.x-Width/2f)+.5f;
+        from.z+=(cnkRgn1.y-Depth/2f)+.5f;
 getGroundRays.AddNoResize(new RaycastCommand(from,Vector3.down,Height,physHelper.voxelTerrain));gotGroundRays.Add((vCoord1.x,vCoord1.z));
 getGroundHits.AddNoResize(new RaycastHit    ()                                                );
 plantAt[(vCoord1.x,vCoord1.z)]=plantData.Value;
