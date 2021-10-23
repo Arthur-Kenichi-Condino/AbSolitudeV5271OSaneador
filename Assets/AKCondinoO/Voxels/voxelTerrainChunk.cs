@@ -222,6 +222,10 @@ spacingAllTypes=Vector2Int.zero;spacingOwnTypeOnly.Clear();spacingByLayer.Clear(
 Vector2Int spacingAllTypes;readonly Dictionary<Type,Vector2Int>spacingOwnTypeOnly=new Dictionary<Type,Vector2Int>();readonly Dictionary<int,Vector2Int>spacingByLayer=new Dictionary<int,Vector2Int>();
 protected override void Execute(){
 if(current.done){Debug.Log("done");
+string everGreenPath=string.Format("{0}{1}/",perChunkSavePath,current.cnkIdx_bg);
+string everGreenFile=string.Format("{0}_everGreen.placeholder",everGreenPath);
+Directory.CreateDirectory(everGreenPath);
+using(var file=new FileStream(everGreenFile,FileMode.OpenOrCreate,FileAccess.ReadWrite,FileShare.None)){}
 }else if(gotGroundHits.Count>0){Debug.Log("got hits on ground");
 Vector3Int vCoord1=new Vector3Int(0,Height/2-1,0);int i=0;
 for(vCoord1.x=0             ;vCoord1.x<Width;vCoord1.x++){
