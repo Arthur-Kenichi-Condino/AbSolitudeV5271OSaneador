@@ -59,8 +59,9 @@ internal NetworkObject network;internal NetworkTransform networkTransform;
 internal Bounds localBounds;readonly Vector3[]boundsVertices=new Vector3[8];bool boundsVerticesTransformed;
 internal new Collider[]collider;internal new Rigidbody rigidbody;internal readonly List<Collider>volumeCollider=new List<Collider>();
 internal new Renderer[]renderer;
-void Awake(){//Debug.Log("simObject Awake");
+protected virtual void Awake(){//Debug.Log("simObject Awake");
 fileData.type=GetType();
+if(fileData.specsData_bg==null){fileData.specsData_bg=new serializableSpecsData();}
 network=GetComponent<NetworkObject>();
 networkTransform=GetComponent<NetworkTransform>();
 collider=GetComponentsInChildren<Collider>();rigidbody=GetComponent<Rigidbody>();foreach(var col in collider)if(col.CompareTag("volume"))volumeCollider.Add(col);
@@ -119,12 +120,18 @@ if(id!=null){//Debug.Log("I exist");
 if(loading){//Debug.Log("background loading in progress...");
 if(fileData.backgroundData.WaitOne(0)){//Debug.Log("got loaded data to set");
 loading=false;
+if(fileData.cancel){Debug.Log("cancel loading");
+unloading=true;
+fileData.Setserializable();
+persistentDataMultithreaded.Schedule(fileData);
+}else{
 fileData.Getserializable();
 fileData.Filltransform(transform);
 transformBoundsVertices();
 previousPosition=transform.position;
 cCoord=cCoord_Pre=vecPosTocCoord(transform.position);
 cnkIdx=GetcnkIdx(cCoord.x,cCoord.y);
+}
 }
 }else if(fileIndex!=null){//Debug.Log("I need to load file data");
 if(fileData.backgroundData.WaitOne(0)){//Debug.Log("start loading");
@@ -143,6 +150,7 @@ fileData.unplace=false;
 OnUnplace(this);
 }
 OnDisabledSim(this);
+fileData.cancel=false;
 }
 }else if(DEBUG_UNPLACE){Debug.Log("DEBUG_UNPLACE");
 DisableSim();
@@ -292,13 +300,13 @@ transform.rotation=this.transform.rotation;
 transform.position=this.transform.position;
 transform.localScale=this.transform.scale;
 }
-internal Type type;internal(ulong id,int?cnkIdx)fileIndex_bg;internal bool unplace;
+internal Type type;internal(ulong id,int?cnkIdx)fileIndex_bg;internal bool unplace;internal bool cancel;
 internal readonly serializableTransform transform_bg=new serializableTransform();[Serializable]internal class serializableTransform{
 public SerializableQuaternion rotation{get;set;}
 public SerializableVector3    position{get;set;}
 public SerializableVector3    scale{get;set;}
 }
-internal readonly serializableSpecsData specsData_bg=new serializableSpecsData();[Serializable]internal class serializableSpecsData{
+internal          serializableSpecsData specsData_bg                            ;[Serializable]internal class serializableSpecsData{
 public string transformFile;
 }
 internal void Setserializable(){
@@ -314,7 +322,7 @@ transform.scale=transform_bg.scale;
 }
 internal class persistentDataMultithreaded:baseMultithreaded<persistentData>{
 readonly JsonSerializer jsonSerializer=new JsonSerializer();
-(ulong id,int?cnkIdx)fileIndex{get{return current.fileIndex_bg;}set{current.fileIndex_bg=value;}}bool unplace{get{return current.unplace;}}
+(ulong id,int?cnkIdx)fileIndex{get{return current.fileIndex_bg;}set{current.fileIndex_bg=value;}}bool unplace{get{return current.unplace;}}bool cancel{get{return current.cancel;}set{current.cancel=value;}}
 serializableTransform transform{get{return current.transform_bg;}}
 serializableSpecsData specsData{get{return current.specsData_bg;}}
 protected override void Renew(persistentData next){
@@ -331,7 +339,7 @@ string specsDataFile=string.Format("{0}({1},{2}).JsonSerializer",sObjectsSavePat
 using(var file=new FileStream(specsDataFile,FileMode.OpenOrCreate,FileAccess.ReadWrite,FileShare.None)){
 if(file.Length>0){//Debug.Log("I already exist");
 using(var reader=new StreamReader(file)){using(var json=new JsonTextReader(reader)){
-serializableSpecsData last=(serializableSpecsData)jsonSerializer.Deserialize(json,typeof(serializableSpecsData));
+serializableSpecsData last=(serializableSpecsData)jsonSerializer.Deserialize(json,specsData.GetType());
 if(!fileIndex.cnkIdx.HasValue){/*  :saving! ...Or else just being loaded  *///Debug.Log("sim object is being saved in a new place, not just loaded; delete last transform data file: "+last.transformFile);
 if(
 File.Exists(last.transformFile)){
@@ -356,7 +364,9 @@ return string.Format("{0}({1},{2}).JsonSerializer",transformPath,current.type,fi
 }
 }
 //Debug.Log("transform data file: "+transformFile);
-if(loaded){//Debug.Log("load transform data file");
+if(string.IsNullOrEmpty(transformFile)&&loaded){Debug.Log("trying to load unplaced sim object");
+cancel=true;
+}else if(loaded){//Debug.Log("load transform data file");
 using(var file=new FileStream(transformFile,FileMode.OpenOrCreate,FileAccess.ReadWrite,FileShare.None)){
 using(var reader=new StreamReader(file)){using(var json=new JsonTextReader(reader)){
 serializableTransform load=(serializableTransform)jsonSerializer.Deserialize(json,typeof(serializableTransform));
@@ -366,7 +376,7 @@ transform.scale=load.scale;
 }}
 }
 }
-if(unplace){
+if(unplace||cancel){
 specsData.transformFile="";
 }else{
 using(var file=new FileStream(transformFile,FileMode.OpenOrCreate,FileAccess.ReadWrite,FileShare.None)){
@@ -382,7 +392,7 @@ using(var file=new FileStream(specsDataFile,FileMode.OpenOrCreate,FileAccess.Rea
 file.SetLength(0);
 file.Flush(true);
 using(var writer=new StreamWriter(file)){using(var json=new JsonTextWriter(writer)){
-jsonSerializer.Serialize(json,specsData,typeof(serializableSpecsData));
+jsonSerializer.Serialize(json,specsData,specsData.GetType());
 }}
 }
 var f=fileIndex;f.cnkIdx=null;fileIndex=f;//Debug.Log("set persistent data to be saved from now on");
